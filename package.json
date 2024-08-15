@@ -1,0 +1,16 @@
+{
+    "name": "Cold Automation - Forensic",
+    "version": "1.0.0",
+    "description": "Remote Acquisition Android Smartphone",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/mrdotss/cold-forensic-automation"
+    },
+    "bugs": {
+        "url": "mailto:mayer@fatechid.com",
+        "email": "mayer@fatechid.com"
+    },
+    "author": "Mayer Reflino Sitorus",
+    "dependencies": {},
+    "devDependencies": {}
+}

@@ -1,0 +1,6 @@
+*.log
+.env
+env/
+staticfiles/
+apps/node_modules/
+db.sqlite3

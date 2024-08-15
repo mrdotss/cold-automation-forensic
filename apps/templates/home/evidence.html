@@ -1,0 +1,158 @@
+{% extends 'layouts/base.html' %}
+
+{% block title %} Evidence {% endblock title %}
+
+<!-- Specific CSS goes HERE -->
+{% block stylesheets %}
+{% load static %}
+  <!-- CSS Libraries -->
+  <link rel="stylesheet" href="{% static 'node_modules/datatables.net-bs4/css/dataTables.bootstrap4.min.css' %}">
+  <link rel="stylesheet" href="{% static 'node_modules/datatables.net-select-bs4/css/select.bootstrap4.min.css' %}">
+{% endblock stylesheets %}
+
+{% block content %}
+    <div class="section-header">
+        <h1>Evidence</h1>
+        <div class="section-header-breadcrumb">
+          <div class="breadcrumb-item active"><a href="#">Evidence</a></div>
+          <div class="breadcrumb-item">Evidence List</div>
+        </div>
+      </div>
+
+    <div class="section-body">
+        <h2 class="section-title">Evidences</h2>
+        <p class="section-lead">This is all evidences from any case created before.</p>
+
+        <div class="row">
+          <div class="col-12">
+            <div class="card">
+              <div class="card-body">
+                  <a href="{% url 'evidences_create' %}" class="btn btn-outline-secondary">Create New Evidence</a>
+                  <br><br>
+                <div class="table-responsive">
+                  <table class="table table-striped" id="table-1">
+                  <thead>
+                    <tr>
+                      <th class="text-center">#</th>
+                      <th>Case Name</th>
+                      <th>Evidence Type</th>
+                      <th>Description</th>
+                      <th>Acquired By</th>
+                      <th>Acquisition Date</th>
+                      <th>Storage Location</th>
+                      <th>Status</th>
+                      <th>Chain of Custody</th>
+                      <th>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                  {% for evidence in evidence_list %}
+                      <tr>
+                      <td>{{ forloop.counter }}</td>
+                      <td>{{ evidence.case.case_name }}</td>
+                      <td>{{ evidence.evidence_type }}</td>
+                      <td>{{ evidence.evidence_description }}</td>
+                      <td>{{ evidence.evidence_acquired_by.user_name }}</td>
+                      <td>{{ evidence.evidence_acquired_date }}</td>
+                          {% if evidence.evidence_file_location %}
+                              <td><a href="#" class="btn btn-secondary">Show</a></td>
+                          {% else %}
+                              <td>NULL</td>
+                          {% endif %}
+
+                      {% load custom_filters %}
+                      {% if evidence.evidence_status %}
+                          <td><div class="badge {{ evidence.evidence_status|evidence_status_badge_class }}">{{ evidence.evidence_status }}</div></td>
+                      {% endif %}
+                      <td><button class="btn btn-secondary log-btn" data-evidence-id="{{ evidence.evidence_id }}">Log</button></td>
+                      <td>
+                          <a href="update/{{ evidence.evidence_id }}" class="btn btn-icon btn-warning"><i class="fas fa-pen"></i></a>
+                          <button class="btn btn-danger delete-evidence-btn" data-evidence-id="{{ evidence.evidence_id }}"
+                                  data-toggle="modal" data-target="#deleteModal-{{ evidence.evidence_id }}"
+                                  data-bs-target="#delete-confirmation-modal-{{ evidence.evidence_id }}">
+                              <i class="fas fa-trash"></i></button>
+                      </td>
+                    </tr>
+                  {% endfor %}
+                  </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+{% endblock content %}
+
+{% block modalstuff %}
+    {% for evidence in evidence_list %}
+        <div class="modal fade"  tabindex="-1" role="dialog" id="deleteModal-{{ evidence.evidence_id }}">
+          <div class="modal-dialog" role="document">
+            <div class="modal-content">
+              <div class="modal-header">
+                <h5 class="modal-title">Delete Evidence</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                  <span aria-hidden="true">&times;</span>
+                </button>
+              </div>
+              <div class="modal-body">
+                <p>Are you sure want to delete evidence with case name: {{ evidence.case.case_name }}</p>
+              </div>
+              <div class="modal-footer bg-whitesmoke br">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger confirm-delete-btn" data-evidence-id="{{ evidence.evidence_id }}">Delete</button>
+              </div>
+            </div>
+          </div>
+        </div>
+    {% endfor %}
+{% endblock modalstuff %}
+
+<!-- Specific JS goes HERE -->
+{% block javascripts %}
+    <!-- JS Libraies -->
+    <script src="{% static 'node_modules/datatables/media/js/jquery.dataTables.min.js' %}"></script>
+    <script src="{% static 'node_modules/datatables.net-bs4/js/dataTables.bootstrap4.min.js' %}"></script>
+    <script src="{% static 'node_modules/datatables.net-select-bs4/js/select.bootstrap4.min.js' %}"></script>
+    <script src="{% static 'node_modules/select2/dist/js/select2.full.min.js' %}"></script>
+    <script src="{% static 'assets/js/page/modules-datatables.js' %}"></script>
+    <script src="{% static 'assets/js/page/bootstrap-modal.js' %}"></script>
+
+    <script>
+        $(document).ready(function() {
+          $('.confirm-delete-btn').on('click', function() {
+              const evidenceId = $(this).data('evidence-id');
+              $.ajax({
+              url: '/evidence/' + evidenceId + '/delete',
+              type: 'POST',
+              contentType: 'application/json; charset=utf-8',
+              success: function(result) {
+                if (result.success) {
+                  window.location.href = '{% url 'evidences_home' %}';
+                } else {
+                  alert('Error deleting the Evidence');
+                }
+              }
+            });
+          });
+        });
+
+        $(document).ready(function() {
+          $('.log-btn').on('click', function() {
+            const evidenceId = $(this).data('evidence-id');
+            $.ajax({
+              url: '/evidence/' + evidenceId + '/modal_data',
+              type: 'GET',
+              success: function(data) {
+                // The 'data' parameter contains the modal data returned from the server
+                // Generate the modal using this data and append it to the body
+                $('body').append(data);
+                // Show the modal
+                $('#exampleModal-' + evidenceId).modal('show');
+              }
+            });
+          });
+        });
+
+    </script>
+{% endblock javascripts %}

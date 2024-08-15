@@ -1,0 +1,257 @@
+{% extends 'layouts/base.html' %}
+
+{% block title %} Evidence {% endblock title %}
+
+<!-- Specific CSS goes HERE -->
+{% block stylesheets %}
+{% load static %}
+  <!-- CSS Libraries -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-select/1.13.18/css/bootstrap-select.min.css" integrity="sha512-ARJR74swou2y0Q2V9k0GbzQ/5vJ2RBSoCWokg4zkfM29Fb3vZEQyv0iWBMW/yvKgyHSR/7D64pFMmU8nYmbRkg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+  <link rel="stylesheet" href="{% static 'node_modules/datatables.net-bs4/css/dataTables.bootstrap4.min.css' %}">
+  <link rel="stylesheet" href="{% static 'node_modules/datatables.net-select-bs4/css/select.bootstrap4.min.css' %}">
+  <link rel="stylesheet" href="{% static 'node_modules/select2/dist/css/select2.min.css' %}">
+  <link rel="stylesheet" href="{% static 'node_modules/selectric/public/selectric.css' %}">
+  <link rel="stylesheet" href="{% static 'node_modules/bootstrap-daterangepicker/daterangepicker.css' %}">
+  <link rel="stylesheet" href="{% static 'node_modules/prismjs/themes/prism.css' %}">
+{% endblock stylesheets %}
+
+{% block content %}
+    <div class="section-header">
+        <h1>Evidence</h1>
+        <div class="section-header-breadcrumb">
+          <div class="breadcrumb-item active"><a href="#">Evidence</a></div>
+          <div class="breadcrumb-item">Evidence Update</div>
+        </div>
+    </div>
+
+    <div class="section-body">
+        <h2 class="section-title">Evidence</h2>
+        <p class="section-lead">Edit Evidence Form</p>
+
+        <div class="row">
+            <div class="col-12 col-md-3 col-lg-3">
+            </div>
+            <div class="col-12 col-md-6 col-lg-6">
+              <div class="card">
+              <div class="card-header">
+                <h4>Update Evidence</h4>
+              </div>
+                <div class="card-body">
+                  <form class="form-row" action="" method="post">
+                      {% csrf_token %}
+                      <div class="form-group col-md-6">
+                          <label for="case">Select Case</label>
+                          {{ form.case }}
+                      </div>
+
+                      <div class="form-group col-md-6">
+                          <label for="evidence_acquired_by">Acquired By</label>
+                          {{ form.evidence_acquired_by }}
+                      </div>
+
+                      <div class="form-group col-md-6">
+                          <label for="evidence_description">Evidence Description</label>
+                          {{ form.evidence_description }}
+                      </div>
+
+                      <div class="form-group col-md-6">
+                          <label for="evidence_type">Evidence Type</label>
+                            {% for choice in form.evidence_type.field.choices %}
+                                <div class="custom-control custom-radio">
+                                    <input type="radio" id="evidence_type-{{ forloop.counter }}"
+                                           name="{{ form.evidence_type.name }}"
+                                           class="custom-control-input"
+                                           value="{{ choice.0 }}"
+                                           {% if form.evidence_type.value == choice.0 %}checked{% endif %}>
+                                    <label class="custom-control-label" for="evidence_type-{{ forloop.counter }}">{{ choice.1 }}</label>
+                                </div>
+                            {% endfor %}
+                      </div>
+
+                      <div class="form-group col-md-6">
+                          <label for="evidence_status">Status</label>
+                          {{ form.evidence_status }}
+                      </div>
+
+                      <div class="form-group col-md-6">
+                          <label for="evidence_acquired_date">Acquired Date</label>
+                          {{ form.evidence_acquired_date }}
+                      </div>
+
+                      <div class="card-header">
+                          <h4>Chain of Custody (Optional)</h4>
+                      </div>
+                    <div class="chain-of-custody-form">
+                        {{ chain_of_custody_formset.management_form }}
+                        {% for form in chain_of_custody_formset %}
+                            <div class="row">
+                                <div class="form-group col-md-6">
+                                    <label for="coc_date">Date</label>
+                                    <div class="input-group">
+                                        {{ form.date }}
+                                    </div>
+                                </div>
+                                <div class="form-group col-md-6">
+                                    <label for="coc_user">User</label>
+                                    {{ form.user }}
+                                </div>
+                                <div class="form-group col-md-6">
+                                    <label for="coc_action">Action</label>
+                                    {{ form.action }}
+                                </div>
+                                <div class="form-group col-md-6">
+                                    <label for="coc_details">Details</label>
+                                    {{ form.detail }}
+                                </div>
+                                <div class="col-md-12">
+                                    <div class="remove-coc"><button class="btn btn-outline-danger">Remove</button><hr></div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                        <!--- Filled by add-coc button --->
+                    </div>
+                      <div class="form-group col-md-12">
+                        <button class="btn btn-outline-secondary" id="add-coc">+ Chain of Custody</button>
+                      </div>
+                      <button type="submit" class="btn btn-primary">Update</button>
+                  </form>
+
+                    {% if chain_of_custody_formset.non_form_errors %}
+                        <div class="alert alert-danger">
+                            {{ chain_of_custody_formset.non_form_errors }}
+                        </div>
+                    {% endif %}
+
+                    {% for form in chain_of_custody_formset %}
+                        {% if form.errors %}
+                            <div class="alert alert-danger">
+                                {{ form.errors }}
+                            </div>
+                        {% endif %}
+                    {% endfor %}
+
+                </div>
+              </div>
+            </div>
+        </div>
+    </div>
+{% endblock content %}
+
+<!-- Specific JS goes HERE -->
+{% block javascripts %}
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-select/1.13.18/js/bootstrap-select.min.js" integrity="sha512-yDlE7vpGDP7o2eftkCiPZ+yuUyEcaBwoJoIhdXv71KZWugFqEphIS3PU60lEkFaz8RxaVsMpSvQxMBaKVwA5xg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
+    <script>
+        var homeUserList = {{ home_user_list|safe }};
+    </script>
+    <script>
+        var formCount = {{ chain_of_custody_formset.total_form_count }};
+    </script>
+
+    <script>
+        $("#add-coc").on("click", function(e) {
+            e.preventDefault();
+            let userOptions = "";
+            for (const user of homeUserList) {
+                userOptions += `<option value="${user.user_id}">${user.user_name}</option>`;
+            }
+            const htmlToAdd = `
+                <div class="row">
+                    <div class="form-group col-md-6">
+                        <label for="form-${formCount}-date">Date</label>
+                        <div class="input-group">
+                                <input type="text" name="form-${formCount}-date" class="form-control datepicker" id="form-${formCount}-date">
+                        </div>
+                    </div>
+                    <div class="form-group col-md-6">
+                        <label for="form-${formCount}-user">User</label>
+                        <select class="form-control select2" name="form-${formCount}-user" id="form-${formCount}-user">
+                            <option value="Select...">Select...</option>
+                            ${userOptions}
+                        </select>
+                    </div>
+                    <div class="form-group col-md-6">
+                        <label for="form-${formCount}-action">Action</label>
+                        <input type="text" name="form-${formCount}-action" class="form-control" id="form-${formCount}-action" placeholder="Created/Collected something...">
+                    </div>
+                    <div class="form-group col-md-6">
+                        <label for="form-${formCount}-detail">Details</label>
+                        <input type="text" name="form-${formCount}-detail" class="form-control" id="form-${formCount}-detail" placeholder="Location: xx/something...">
+                    </div>
+                    <div class="col-md-12">
+                        <div class="remove-coc"><button class="btn btn-outline-danger">Remove</button><hr></div>
+                    </div>
+                </div>`;
+            $(".chain-of-custody-form").append(htmlToAdd);
+
+            // Initialize select2 for the newly added select element
+            $(".chain-of-custody-form .row:last-child .select2").select2();
+
+            // Initialize datepicker for the newly added datepicker element
+            $(".chain-of-custody-form .row:last-child .datepicker").daterangepicker({
+                singleDatePicker: true,
+                locale: {
+                    format: "YYYY-MM-DD"
+                }
+            });
+
+            formCount++;
+            $("#id_form-TOTAL_FORMS").val(formCount);
+        });
+
+        function reindexFormElements() {
+            let formIdx = 0;
+            $(".chain-of-custody-form .row").each(function () {
+                $(this).find("input, select").each(function () {
+                    let name = $(this).attr("name").replace(/form-\d+-/, `form-${formIdx}-`);
+                    let id = $(this).attr("id").replace(/form-\d+-/, `form-${formIdx}-`);
+                    $(this).attr("name", name);
+                    $(this).attr("id", id);
+                });
+                formIdx++;
+            });
+        }
+
+        $(".chain-of-custody-form").on("click", ".remove-coc", function (e) {
+            e.preventDefault();
+            $(this).closest(".row").remove();
+            formCount--;
+            $("#id_form-TOTAL_FORMS").val(formCount);
+            reindexFormElements();
+        });
+    </script>
+
+    <!-- JS Libraies -->
+    <script src="{% static 'node_modules/datatables/media/js/jquery.dataTables.min.js' %}"></script>
+    <script src="{% static 'node_modules/bootstrap-daterangepicker/daterangepicker.js' %}"></script>
+    <script src="{% static 'node_modules/datatables.net-bs4/js/dataTables.bootstrap4.min.js' %}"></script>
+    <script src="{% static 'node_modules/datatables.net-select-bs4/js/select.bootstrap4.min.js' %}"></script>
+    <script src="{% static 'node_modules/select2/dist/js/select2.full.min.js' %}"></script>
+    <script src="{% static 'node_modules/selectric/public/jquery.selectric.min.js' %}"></script>
+    <script src="{% static 'node_modules/prismjs/prism.js' %}"></script>
+    <script src="{% static 'assets/js/page/modules-datatables.js' %}"></script>
+    <script src="{% static 'assets/js/page/forms-advanced-forms.js' %}"></script>
+
+    <script>
+    $(document).ready(function() {
+        $("#case").on("change", function() {
+            if ($(this).val() === "Select...") {
+                $("#evidence_acquired_by").html("");
+                return;
+            }
+            const caseId = $(this).val();
+            const url = "/evidence/get_case_members/" + caseId;
+
+            $.getJSON(url, function(members) {
+                let options = '';
+                $.each(members, function(index, member) {
+                    options += '<option value="' + member.user_id + '">' + member.user_name + '</option>';
+                });
+
+                $("#evidence_acquired_by").html(options);
+            });
+        });
+    });
+    </script>
+{% endblock javascripts %}

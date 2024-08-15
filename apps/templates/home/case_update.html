@@ -1,0 +1,94 @@
+{% extends 'layouts/base.html' %}
+
+{% block title %} Case {% endblock title %}
+
+<!-- Specific CSS goes HERE -->
+{% block stylesheets %}
+{% load static %}
+  <!-- CSS Libraries -->
+  <link rel="stylesheet" href="{% static 'node_modules/datatables.net-bs4/css/dataTables.bootstrap4.min.css' %}">
+  <link rel="stylesheet" href="{% static 'node_modules/datatables.net-select-bs4/css/select.bootstrap4.min.css' %}">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-select/1.13.18/css/bootstrap-select.min.css" integrity="sha512-ARJR74swou2y0Q2V9k0GbzQ/5vJ2RBSoCWokg4zkfM29Fb3vZEQyv0iWBMW/yvKgyHSR/7D64pFMmU8nYmbRkg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+{% endblock stylesheets %}
+
+{% block content %}
+    <div class="section-header">
+        <h1>Case</h1>
+        <div class="section-header-breadcrumb">
+          <div class="breadcrumb-item active"><a href="#">Case</a></div>
+          <div class="breadcrumb-item">Case List</div>
+        </div>
+    </div>
+
+    <div class="section-body">
+        <h2 class="section-title">Case</h2>
+        <p class="section-lead">Edit Case Form</p>
+
+        <div class="row">
+
+            <div class="col-12 col-md-3 col-lg-3">
+            </div>
+
+          <div class="col-12 col-md-6 col-lg-6">
+            <div class="card">
+              <div class="card-body">
+
+                  <div class="card-header">
+                    <h4>Update Case</h4>
+                  </div>
+                  <div class="card-body">
+                    <form class="form-row" action="" method="post">
+                        {% csrf_token %}
+                        <div class="form-group col-md-12">
+                          <label>Created by</label>
+                            {% load custom_filters %}
+                          <input type="text" class="form-control-plaintext" readonly="" value="{{ user.user_name }} - {{ user.user_id|stringformat:"s"|split_string:"-"|last }}">
+                        </div>
+                        <div class="form-group col-md-12">
+                          <label for="case_member">Select or add user</label>
+                            {{ form.case_member }}
+                            <br>
+                            {{ form.case_member.errors }}
+                        </div>
+                      <div class="form-group col-md-6">
+                        <label for="{{ form.case_name.id_for_label }}">Case Name</label>
+                          {{ form.case_name }}
+                          <br>
+                          {{ form.case_name.errors }}
+                      </div>
+                      <div class="form-group col-md-6">
+                       <div class="section-title mt-0">Is the case open?</div>
+                        <div class="custom-control custom-checkbox">
+                          {{ form.case_is_open }}
+                          <label class="custom-control-label" for="case_is_open">Open</label>
+                        </div>
+                      </div>
+                        <button type="submit" class="btn btn-primary">Update</button>
+                    </form>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+    </div>
+{% endblock content %}
+
+<!-- Specific JS goes HERE -->
+{% block javascripts %}
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-select/1.13.18/js/bootstrap-select.min.js" integrity="sha512-yDlE7vpGDP7o2eftkCiPZ+yuUyEcaBwoJoIhdXv71KZWugFqEphIS3PU60lEkFaz8RxaVsMpSvQxMBaKVwA5xg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
+    <script>
+        $(document).ready(function() {
+            $('.selectpicker').selectpicker();
+        });
+    </script>
+
+    <!-- JS Libraies -->
+    <script src="{% static 'node_modules/datatables/media/js/jquery.dataTables.min.js' %}"></script>
+    <script src="{% static 'node_modules/datatables.net-bs4/js/dataTables.bootstrap4.min.js' %}"></script>
+    <script src="{% static 'node_modules/datatables.net-select-bs4/js/select.bootstrap4.min.js' %}"></script>
+    <script src="{% static 'assets/js/page/modules-datatables.js' %}"></script>
+
+{% endblock javascripts %}

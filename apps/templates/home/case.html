@@ -1,0 +1,134 @@
+{% extends 'layouts/base.html' %}
+
+{% block title %} Case {% endblock title %}
+
+<!-- Specific CSS goes HERE -->
+{% block stylesheets %}
+{% load static %}
+  <!-- CSS Libraries -->
+  <link rel="stylesheet" href="{% static 'node_modules/datatables.net-bs4/css/dataTables.bootstrap4.min.css' %}">
+  <link rel="stylesheet" href="{% static 'node_modules/datatables.net-select-bs4/css/select.bootstrap4.min.css' %}">
+{% endblock stylesheets %}
+
+{% block content %}
+    <div class="section-header">
+        <h1>Case</h1>
+        <div class="section-header-breadcrumb">
+          <div class="breadcrumb-item active"><a href="#">Case</a></div>
+          <div class="breadcrumb-item">Case List</div>
+        </div>
+    </div>
+
+    <div class="section-body">
+        <h2 class="section-title">Case</h2>
+        <p class="section-lead">This is all case created before.</p>
+        <div class="row">
+          <div class="col-12">
+            <div class="card">
+              <div class="card-body">
+                  <a href="{% url 'cases_create' %}" class="btn btn-outline-secondary">Create New Case</a>
+                  <br><br>
+                <div class="table-responsive">
+                  <table class="table table-striped" id="table-1">
+                  <thead>
+                    <tr>
+                      <th>#</th>
+                      <th>Name</th>
+                      <th>Members</th>
+                      <th>Create At</th>
+                      <th>Status</th>
+                      <th>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                  {% for case in case_list %}
+                    <tr>
+                      <td>{{ forloop.counter }}</td>
+                      <td>{{ case.case_name }}</td>
+                      <td>
+                        {% for member_list in case.case_member.all %}
+                            <img alt="image" src="{% static 'assets/img/avatar/avatar-5.png' %}" class="rounded-circle" width="35" data-toggle="tooltip" title="{{ member_list.user_name }}">
+                        {% endfor %}
+                      </td>
+                      <td>{{ case.created_at }}</td>
+                      <td>
+                          {% if case.case_is_open %}
+                            <div class="badge badge-success">Open</div>
+                          {% else %}
+                            <div class="badge badge-danger">Close</div>
+                          {% endif %}
+                      </td>
+                      <td>
+                          <a href="#" class="btn btn-icon btn-info"><i class="fas fa-eye"></i></a>
+                          <a href="update/{{ case.case_id }}" class="btn btn-icon btn-warning"><i class="fas fa-pen"></i></a>
+                          <button class="btn btn-danger delete-case-btn" data-case-id="{{ case.case_id }}"
+                                  data-toggle="modal" data-target="#exampleModal-{{ case.case_id }}"
+                                  data-bs-target="#delete-confirmation-modal-{{ case.case_id }}">
+                              <i class="fas fa-trash"></i></button>
+                      </td>
+                    </tr>
+                  {% endfor %}
+                  </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+    </div>
+{% endblock content %}
+
+{% block modalstuff %}
+    {% for case in case_list %}
+        <div class="modal fade" tabindex="-1" role="dialog" id="exampleModal-{{ case.case_id }}">
+          <div class="modal-dialog modal-dialog-centered" role="document">
+            <div class="modal-content">
+              <div class="modal-header">
+                <h5 class="modal-title">Delete Case</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                  <span aria-hidden="true">&times;</span>
+                </button>
+              </div>
+              <div class="modal-body">
+                <p>Are you sure want to delete {{ case.case_name }} case</p>
+              </div>
+              <div class="modal-footer bg-whitesmoke br">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger confirm-delete-btn" data-case-id="{{ case.case_id }}">Delete</button>
+              </div>
+            </div>
+          </div>
+        </div>
+    {% endfor %}
+{% endblock modalstuff %}
+
+<!-- Specific JS goes HERE -->
+{% block javascripts %}
+    <!-- JS Libraies -->
+    <script src="{% static 'node_modules/prismjs/prism.js' %}"></script>
+    <script src="{% static 'assets/js/page/bootstrap-modal.js' %}"></script>
+    <script src="{% static 'node_modules/datatables/media/js/jquery.dataTables.min.js' %}"></script>
+    <script src="{% static 'node_modules/datatables.net-bs4/js/dataTables.bootstrap4.min.js' %}"></script>
+    <script src="{% static 'node_modules/datatables.net-select-bs4/js/select.bootstrap4.min.js' %}"></script>
+    <script src="{% static 'assets/js/page/modules-datatables.js' %}"></script>
+
+    <script>
+        $(document).ready(function() {
+          $('.confirm-delete-btn').on('click', function() {
+              const caseId = $(this).data('case-id');
+              $.ajax({
+              url: '/case/' + caseId + '/delete',
+              type: 'POST',
+              contentType: 'application/json; charset=utf-8',
+              success: function(result) {
+                if (result.success) {
+                  window.location.href = '{% url 'cases_home' %}';
+                } else {
+                  alert('Error deleting the case');
+                }
+              }
+            });
+          });
+        });
+    </script>
+{% endblock javascripts %}

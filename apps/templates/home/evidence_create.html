@@ -1,0 +1,207 @@
+{% extends 'layouts/base.html' %}
+
+{% block title %} Evidence {% endblock title %}
+
+<!-- Specific CSS goes HERE -->
+{% block stylesheets %}
+{% load static %}
+  <!-- CSS Libraries -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-select/1.13.18/css/bootstrap-select.min.css" integrity="sha512-ARJR74swou2y0Q2V9k0GbzQ/5vJ2RBSoCWokg4zkfM29Fb3vZEQyv0iWBMW/yvKgyHSR/7D64pFMmU8nYmbRkg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+  <link rel="stylesheet" href="{% static 'node_modules/datatables.net-bs4/css/dataTables.bootstrap4.min.css' %}">
+  <link rel="stylesheet" href="{% static 'node_modules/datatables.net-select-bs4/css/select.bootstrap4.min.css' %}">
+  <link rel="stylesheet" href="{% static 'node_modules/select2/dist/css/select2.min.css' %}">
+  <link rel="stylesheet" href="{% static 'node_modules/selectric/public/selectric.css' %}">
+  <link rel="stylesheet" href="{% static 'node_modules/bootstrap-daterangepicker/daterangepicker.css' %}">
+  <link rel="stylesheet" href="{% static 'node_modules/prismjs/themes/prism.css' %}">
+{% endblock stylesheets %}
+
+{% block content %}
+    <div class="section-header">
+        <h1>Evidence</h1>
+        <div class="section-header-breadcrumb">
+          <div class="breadcrumb-item active"><a href="#">Evidence</a></div>
+          <div class="breadcrumb-item">Evidence List</div>
+        </div>
+    </div>
+
+    <div class="section-body">
+        <h2 class="section-title">Evidence</h2>
+        <p class="section-lead">New Evidence Form</p>
+
+        <div class="row">
+            <div class="col-12 col-md-3 col-lg-3">
+            </div>
+            <div class="col-12 col-md-6 col-lg-6">
+              <div class="card">
+              <div class="card-header">
+                <h4>Create Evidence</h4>
+              </div>
+                <div class="card-body">
+                  <form class="form-row" action="" method="post">
+                      {% csrf_token %}
+                      <div class="form-group col-md-6">
+                          <label for="case">Select Case</label>
+                          <select class="form-control select2" name="case" id="case">
+                              <option value="Select...">Select...</option>
+                              {% for case_list in home_case_list %}
+                                  <option value="{{ case_list.case_id }}">{{ case_list.case_name }}</option>
+                              {% endfor %}
+                          </select>
+                      </div>
+
+                      <div class="form-group col-md-6">
+                          <label for="evidence_acquired_by">Acquired By</label>
+                          <select class="form-control" name="evidence_acquired_by" id="evidence_acquired_by">
+                              <!--- Filled by case form --->
+                          </select>
+                      </div>
+
+                      <div class="form-group col-md-6">
+                          <label for="evidence_description">Evidence Description</label>
+                          <input type="text" name="evidence_description" class="form-control" id="evidence_description"
+                                 placeholder="whome.mp4">
+                      </div>
+
+                      <div class="form-group col-md-6">
+                          <label for="evidence_type">Evidence Type</label>
+                          <div class="custom-control custom-radio">
+                              <input type="radio" id="evidence_type-1" name="evidence_type" class="custom-control-input"
+                                     value="Physical">
+                              <label class="custom-control-label" for="evidence_type-1">Physical</label>
+                          </div>
+                          <div class="custom-control custom-radio">
+                              <input type="radio" id="evidence_type-2" name="evidence_type" class="custom-control-input"
+                                     value="Digital">
+                              <label class="custom-control-label" for="evidence_type-2">Digital</label>
+                          </div>
+                      </div>
+
+                      <div class="form-group col-md-6">
+                          <label for="evidence_status">Status</label>
+                          <select class="form-control selectric" name="evidence_status" id="evidence_status">
+                              <option value="Acquired">Acquired</option>
+                              <option value="Analyzed">Analyzed</option>
+                              <option value="Archived">Archived</option>
+                          </select>
+                      </div>
+
+                      <div class="form-group col-md-6">
+                          <label for="evidence_acquired_date">Acquired Date</label>
+                          <input type="text" name="evidence_acquired_date" class="form-control datepicker" id="evidence_acquired_date">
+                      </div>
+
+                      <div class="card-header">
+                          <h4>Chain of Custody (Optional)</h4>
+                      </div>
+                    <div class="chain-of-custody-form">
+                        <!--- Filled by add-coc button --->
+                    </div>
+                      <div class="form-group col-md-12">
+                        <button class="btn btn-outline-secondary" id="add-coc">+ Chain of Custody</button>
+                      </div>
+                      <button type="submit" class="btn btn-primary">Create</button>
+                  </form>
+                </div>
+              </div>
+            </div>
+        </div>
+    </div>
+{% endblock content %}
+
+<!-- Specific JS goes HERE -->
+{% block javascripts %}
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-select/1.13.18/js/bootstrap-select.min.js" integrity="sha512-yDlE7vpGDP7o2eftkCiPZ+yuUyEcaBwoJoIhdXv71KZWugFqEphIS3PU60lEkFaz8RxaVsMpSvQxMBaKVwA5xg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
+    <script>
+        var homeUserList = {{ home_user_list|safe }};
+    </script>
+
+    <script>
+        $("#add-coc").on("click", function(e) {
+            e.preventDefault();
+            let userOptions = "";
+            for (const user of homeUserList) {
+                userOptions += `<option value="${user.user_id}">${user.user_name}</option>`;
+            }
+            const htmlToAdd = `
+                <div class="row">
+                    <div class="form-group col-md-6">
+                        <label for="coc_date">Date</label>
+                        <div class="input-group">
+                                <input type="text" name="coc_date" class="form-control datepicker" id="coc_date">
+                        </div>
+                    </div>
+                    <div class="form-group col-md-6">
+                        <label for="coc_user">User</label>
+                        <select class="form-control select2" name="coc_user" id="coc_user">
+                            <option value="Select...">Select...</option>
+                            ${userOptions}
+                        </select>
+                    </div>
+                    <div class="form-group col-md-6">
+                        <label for="coc_action">Action</label>
+                        <input type="text" name="coc_action" class="form-control" id="coc_action" placeholder="Created/Collected something...">
+                    </div>
+                    <div class="form-group col-md-6">
+                        <label for="coc_details">Details</label>
+                        <input type="text" name="coc_details" class="form-control" id="coc_details" placeholder="Location: xx/something...">
+                    </div>
+                    <div class="col-md-12">
+                        <div class="remove-coc"><button class="btn btn-outline-danger">Remove</button><hr></div>
+                    </div>
+                </div>`;
+            $(".chain-of-custody-form").append(htmlToAdd);
+
+            // Initialize select2 for the newly added select element
+            $(".chain-of-custody-form .row:last-child .select2").select2();
+
+            // Initialize datepicker for the newly added datepicker element
+            $(".chain-of-custody-form .row:last-child .datepicker").daterangepicker({
+                singleDatePicker: true,
+                locale: {
+                    format: "YYYY-MM-DD"
+                }
+            });
+        });
+
+        $(".chain-of-custody-form").on("click", ".remove-coc", function(e) {
+            e.preventDefault();
+            $(this).closest(".row").remove();
+        });
+    </script>
+
+    <!-- JS Libraies -->
+    <script src="{% static 'node_modules/datatables/media/js/jquery.dataTables.min.js' %}"></script>
+    <script src="{% static 'node_modules/bootstrap-daterangepicker/daterangepicker.js' %}"></script>
+    <script src="{% static 'node_modules/datatables.net-bs4/js/dataTables.bootstrap4.min.js' %}"></script>
+    <script src="{% static 'node_modules/datatables.net-select-bs4/js/select.bootstrap4.min.js' %}"></script>
+    <script src="{% static 'node_modules/select2/dist/js/select2.full.min.js' %}"></script>
+    <script src="{% static 'node_modules/selectric/public/jquery.selectric.min.js' %}"></script>
+    <script src="{% static 'node_modules/prismjs/prism.js' %}"></script>
+    <script src="{% static 'assets/js/page/modules-datatables.js' %}"></script>
+    <script src="{% static 'assets/js/page/forms-advanced-forms.js' %}"></script>
+
+    <script>
+    $(document).ready(function() {
+        $("#case").on("change", function() {
+            if ($(this).val() === "Select...") {
+                $("#evidence_acquired_by").html("");
+                return;
+            }
+            const caseId = $(this).val();
+            const url = "/evidence/get_case_members/" + caseId;
+
+            $.getJSON(url, function(members) {
+                let options = '';
+                $.each(members, function(index, member) {
+                    options += '<option value="' + member.user_id + '">' + member.user_name + '</option>';
+                });
+
+                $("#evidence_acquired_by").html(options);
+            });
+        });
+    });
+    </script>
+
+{% endblock javascripts %}

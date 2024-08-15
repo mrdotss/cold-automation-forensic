@@ -1,0 +1,525 @@
+{% extends 'layouts/base.html' %}
+
+{% block title %} Device {% endblock title %}
+{% load static %}
+<!-- Specific CSS goes HERE -->
+{% block stylesheets %}
+    <link rel="stylesheet" href="{% static 'node_modules/ionicons201/css/ionicons.min.css' %}">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/handlebars.js/4.7.7/handlebars.min.js" integrity="sha512-RNLkV3d+aLtfcpEyFG8jRbnWHxUqVZozacROI4J2F1sTaDqo1dPQYs01OMi1t1w9Y2FdbSCDSQ2ZVdAC8bzgAg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
+    <style>
+      .card-logcat {
+        width: 100%;
+        height: 650px;
+        background-color: #f8f9fa;
+        border: 1px solid #e9ecef;
+        border-radius: 4px;
+        padding: 15px;
+        box-sizing: border-box;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .card-logcat-content {
+        max-height: calc(100% - 30px);
+        overflow-y: auto;
+      }
+    </style>
+{% endblock stylesheets %}
+
+{% block content %}
+
+    <div class="section-header">
+        <h1>
+            Device [BETA]
+        </h1>
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        <div id="showBridge">
+        </div>
+        <div class="section-header-breadcrumb">
+          <div class="breadcrumb-item active"><a href="#">Lab</a></div>
+          <div class="breadcrumb-item">Device</div>
+        </div>
+    </div>
+
+    <div class="section-body">
+
+        <div class="wizard-steps">
+          <div class="wizard-step wizard-step-active">
+            <div class="wizard-step-icon">
+              <i class="ion ion-search"></i>
+            </div>
+            <div class="wizard-step-label">
+              Finding Device
+            </div>
+          </div>
+          <div class="wizard-step wizard-step-active">
+            <div class="wizard-step-icon">
+              <i class="ion ion-code-working"></i>
+            </div>
+            <div class="wizard-step-label">
+              Initializing
+            </div>
+          </div>
+          <div id="connected-step" class="wizard-step wizard-step">
+            <div class="wizard-step-icon">
+                <div id="is-loading">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="sr-only">Loading...</span>
+                    </div>
+                </div>
+                <div id="is-missing-device">
+                </div>
+            </div>
+            <div id="status-device" class="wizard-step-label">
+            </div>
+          </div>
+        </div>
+        <div id="grid" class="row">
+            {% verbatim %}
+              <script id='forensic-template' type='text/x-handlebars-template'>
+              <div class="col-12 col-sm-6 col-lg-6">
+                <div class="card">
+                  <div class="card-header">
+                      <h4>Tools</h4>
+                  </div>
+                  <div class="card-body">
+                    <ul class="nav nav-tabs" id="myTab5" role="tablist">
+                      <li class="nav-item" data-device='{{ devices.0.id }}'>
+                        <a class="nav-link active" id="home-tab5" data-toggle="tab" data-device='{{ devices.0.id }}' data-bs-target='#{{ devices.0.id }}-logcat-pane' href="#home5" role="tab" aria-controls="home" aria-selected="true">
+                          <i class="fas fa-info"></i> Logcat</a>
+                      </li>
+                      <li class="nav-item" data-device='{{ devices.0.id }}'>
+                        <a class="nav-link" id="profile-tab5" data-toggle="tab" data-device='{{ devices.0.id }}' data-bs-target="#{{ devices.0.id }}-profile" href="#profile5" role="tab" aria-controls="profile" aria-selected="false">
+                          <i class="fas fa-terminal"></i> Shell</a>
+                      </li>
+                      <li class="nav-item" data-device='{{ devices.0.id }}'>
+                        <a class="nav-link" id="contact-tab5" data-toggle="tab" data-device='{{ devices.0.id }}' data-bs-target="#{{id}}-contact"  href="#contact5" role="tab" aria-controls="contact" aria-selected="false">
+                          <i class="far fa-keyboard"></i> Input</a>
+                      </li>
+                      <li class="nav-item" data-device='{{ devices.0.id }}'>
+                        <a class="nav-link" id="display-tab5" data-toggle="tab" data-device='{{ devices.0.id }}' data-bs-target="#{{id}}-display"  href="#display5" role="tab" aria-controls="contact" aria-selected="false">
+                          <i class="fa fa-camera"></i> Screenshot</a>
+                      </li>
+                    </ul>
+                    <div class="tab-content" id="myTabContent5">
+                      <div class="tab-pane fade show active" id="home5" role="tabpanel" aria-labelledby="home-tab5">
+                        <div class="card card-primary">
+                          <div class="card-header">
+                                <div class="buttons" id="{{ devices.0.id }}-home" data-device="{{ devices.0.id }}">
+                                    <button type="button" class="btn btn-icon icon-left btn-info logcat-button" data-device='{{ devices.0.id }}'><i class="fas fa-pen"></i> Generate</button>
+                                    <button type="button" class="btn btn-icon icon-left btn-secondary logcat-clear-button" data-device='{{ devices.0.id }}'><i class="fas fa-trash"></i> Clear</button>
+                                    <button type="button" id="exportBtn" class="btn btn-icon icon-left btn-light exportBtn" data-device='{{ devices.0.id }}'><i class="fas fa-file-export"></i> Export</button>
+                                </div>
+                          </div>
+
+                            <div class="card-logcat">
+                                <div id='{{ devices.0.id }}-logcat' class="card-logcat-content logcat">
+                                </div>
+                            </div>
+                        </div>
+                      </div>
+                      <div class="tab-pane fade" id="profile5" role="tabpanel" aria-labelledby="profile-tab5">
+                          <div class="card card-primary">
+                            <div class="buttons" id="{{ devices.0.id }}-profile" data-device="{{ devices.0.id }}">
+                                    <label for="{{ devices.0.id }}-shell-input">Command</label>
+                                    <input type="text" class="form-control shell-input" id="{{ devices.0.id }}-shell-input" data-device='{{ devices.0.id }}'>
+                            </div>
+
+                              Output:
+                              <div class="card-logcat">
+                                <pre id='{{ devices.0.id }}-shell-output' class='card-logcat-content shell'>
+
+                                </pre>
+                              </div>
+                          </div>
+                      </div>
+                      <div class="tab-pane fade" id="contact5" role="tabpanel" aria-labelledby="contact-tab5">
+                        <p>Special Keys</p>
+                        <a class="ion ion-android-home special-key" style="font-size: 32px;" data-device='{{devices.0.id}}' data-key='3' title='Home'></a>&nbsp;
+                        <a  class="ion ion-ios-arrow-left special-key" style="font-size: 32px;" data-device='{{devices.0.id}}' data-key='4' title='Back'></a>&nbsp;
+                        <a class="ion ion-android-menu special-key" style="font-size: 32px;" data-device='{{devices.0.id}}' data-key='187' title='Menu'></a>&nbsp;
+                        <a class="ion ion-android-send special-key" style="font-size: 32px;" data-device='{{devices.0.id}}' data-key='66' title='Enter'></a>&nbsp;
+                        <a class="ion ion-arrow-left-c special-key" style="font-size: 32px;" data-device='{{devices.0.id}}' data-key='67' title='Backspace'></a>&nbsp;
+                        <a class="ion ion-ipad special-key" style="font-size: 32px;" data-device='{{devices.0.id}}' data-key='61' title='Tab'></a>
+                        <br><br><label for="{{ devices.0.id }}-text-input" class="form-label">Input text</label>
+                        <input type="text" class="form-control text-input" data-device='{{ devices.0.id }}' id="{{ devices.0.id }}-text-input" aria-describedby="emailHelp"/>
+                        <div id="{{devices.0.id}}-emailHelp" class="form-text">Enter any text, then the text will type in your device.</div>
+                      </div>
+
+                        <div class="tab-pane fade" id="display5" role="tabpanel" aria-labelledby="display-tab5">
+                            <div class="card card-primary">
+                                <div class="card-header">
+                                    <div class="buttons" id="{{ devices.0.id }}-display" data-device="{{ devices.0.id }}">
+                                        <button type="button" class="btn btn-icon icon-left btn-info screenshot-button" data-device='{{ devices.0.id }}'>
+                                            <i class="fa fa-camera"></i> Screenshot
+                                        </button>
+                                        <button type="button" class="btn btn-icon icon-left btn-secondary screenshot-clear-button" data-device='{{ devices.0.id }}'><i class="fas fa-trash"></i> Clear</button>
+                                        <button type="button" id="exportScreenshotBtn" class="btn btn-icon icon-left btn-light" data-device='{{ devices.0.id }}'><i class="fas fa-file-export"></i> Save</button>
+                                    </div>
+                                </div>
+                                <div class="card-logcat">
+                                    <div id='{{ devices.0.id }}-screenshot' class='card-logcat-content'>
+                                        <!-- Screenshot will be displayed here -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+
+              <div class="col-lg-6 col-md-6 col-12">
+                  <div class="card">
+                    <div class="card-header">
+                        <h4>Device Info</h4>
+                    </div>
+                    <div class="card-body">
+                      <div class="summary">
+                        <div class="summary-info">
+    <!--                      <a href="#">
+                            <img class="mr-3 rounded" width="50" src="{% static 'assets/img/products/product-1-50.png' %}" alt="product">
+                          </a>>-->
+                            <h1><img class="mr-3" width="40" src="/static/assets/img/icons/smartphone/{{ devices.0.manufacturer }}.png" alt="product">{{ devices.0.manufacturer }}</h1>
+                            <div class="text-muted">{{ devices.0.model }}</div><br>
+                            <a href="/device/acquisition/{{ devices.0.id }}" class="btn btn-light">Go To Acquisition Setup</a>
+
+                        </div>
+                        <div class="summary-item">
+                            <div class="card">
+                              <div class="card-body">
+                                <div class="section-title mt-0">Details</div>
+                                  <div class="table-responsive">
+                                    <table class="table table-sm">
+                                      <tbody>
+                                        <tr>
+                                            <td><div class="text-dark mb-1">Serial Number</div></td>
+                                          <td>
+                                              {{ devices.0.serial }}
+                                          </td>
+                                        </tr>
+                                        <tr>
+                                            <td><div class="text-dark mb-1">IMEI</div></td>
+                                          <td>{{ devices.0.IMEI }}</td>
+                                        </tr>
+                                        <tr>
+                                          <td><div class="text-dark mb-1">Android ID</div></td>
+                                          <td>{{ devices.0.AndroidID }}</td>
+                                        </tr>
+                                        <tr>
+                                          <td><div class="text-dark mb-1">Product</div></td>
+                                          <td>{{ devices.0.product }}</td>
+                                        </tr>
+                                        <tr>
+                                          <td><div class="text-dark mb-1">SDK</div></td>
+                                          <td>{{ devices.0.sdk }}</td>
+                                        </tr>
+                                        <tr>
+                                          <td><div class="text-dark mb-1">Operator</div></td>
+                                          <td>{{ devices.0.operator }}</td>
+                                        </tr>
+                                        <tr>
+                                          <td><div class="text-dark mb-1">SELinux</div></td>
+                                          <td>{{ devices.0.SELinux }}</td>
+                                        </tr>
+                                        <tr>
+                                          <td><div class="text-dark mb-1">Timezone</div></td>
+                                          <td>{{ devices.0.timezone }}</td>
+                                        </tr>
+                                        <tr>
+                                          <td><div class="text-dark mb-1">Security Patch</div></td>
+                                          <td>{{ devices.0.security_patch }}</td>
+                                        </tr>
+                                        <tr>
+                                          <td><div class="text-dark mb-1">API Level</div></td>
+                                          <td>{{ devices.0.api_level }}</td>
+                                        </tr>
+                                        <tr>
+                                          <td><div class="text-dark mb-1">SSID</div></td>
+                                          <td>{{ devices.0.network.ssid }}</td>
+                                        </tr>
+                                        <tr>
+                                          <td><div class="text-dark mb-1">Battery</div></td>
+                                          <td>{{ devices.0.battery.level }}</td>
+                                        </tr>
+                                        <tr>
+                                          <td><div class="text-dark mb-1">Screen</div></td>
+                                          <td>{{ devices.0.screen.width }} x {{ devices.0.screen.height }} px</td>
+                                        </tr>
+                                      </tbody>
+                                    </table>
+                                  </div>
+                              </div>
+                            </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+              </div>
+              </script>
+              {% endverbatim %}
+        </div>
+    </div>
+
+{% endblock content %}
+
+<!-- Specific JS goes HERE -->
+{% block javascripts %}
+    <script src="{% static 'assets/js/page/modules-ion-icons.js' %}"></script>
+    <script>
+        function getCurrentDateTime() {
+          const now = new Date();
+          const year = now.getFullYear();
+          const month = (now.getMonth() + 1).toString().padStart(2, '0');
+          const day = now.getDate().toString().padStart(2, '0');
+          const hours = now.getHours().toString().padStart(2, '0');
+          const minutes = now.getMinutes().toString().padStart(2, '0');
+          const seconds = now.getSeconds().toString().padStart(2, '0');
+
+          return `${year}-${month}-${day}_${hours}-${minutes}-${seconds}`;
+        }
+    </script>
+    <script>
+        $(function() {
+          Handlebars.registerHelper('formatStatus', function(status) {
+            var status_strings = ['Unknown', 'Charging', 'Discharging', 'Not charging', 'Full'];
+            return status_strings[status - 1];
+          });
+
+          Handlebars.registerHelper('formatHealth', function(health) {
+            var health_strings = ['Unknown', 'Good', 'Overheated', 'Dead', 'Over voltage', 'Unspecified failure', 'Cold'];
+            return health_strings[health - 1];
+          });
+
+          $.ajax({
+            url: '/device/api/detail/{{ deviceID }}',
+            type: 'GET',
+            dataType: 'json',
+            success: function(data) {
+              var context = { devices: data };
+              var source = $('#forensic-template').html();
+              var template = Handlebars.compile(source);
+              var content = template(context);
+
+              console.log("Context ->", context);
+              $('#grid').html(content);
+
+              // Add the 'wizard-step-active' class to the 'connected-step' element
+              $('#connected-step').addClass('wizard-step-success');
+              $('#is-loading').html(``);
+              $('#is-missing-device').html(`<i class="fab fa-get-pocket"></i>`)
+              $('#status-device').html('Connected');
+
+              if( context['devices'][0]['isWiFi'] ){
+                  $('#showBridge').html(`<span class="d-inline-block" data-toggle="tooltip" data-title="This device is connected via IP address: ${context['devices'][0]['IP']}">
+                        <button class="btn btn-outline-secondary pe-none" type="button" disabled>WiFi</button>
+                    </span>`)
+                  $('[data-toggle="tooltip"]').tooltip(); // Initialize the tooltip for the new element
+                }else{
+                  $('#showBridge').html(`<span class="d-inline-block" data-toggle="tooltip" data-title="This device is connected via USB">
+                        <button class="btn btn-outline-secondary pe-none" type="button" disabled>USB</button>
+                    </span>`)
+                  $('[data-toggle="tooltip"]').tooltip(); // Initialize the tooltip for the new element
+                }
+
+              $('.logcat-button').click(function() {
+
+                const exportBtn = document.getElementById('exportBtn');
+                exportBtn.disabled = true;
+
+                const logcatBtn = this;
+                // Disable the button
+                logcatBtn.disabled = true;
+
+                var device = $(this).data('device');
+                $('#' + device + '-logcat').html('');
+                $.ajax({
+                  url: '/device/logcat/' + device,
+                  type: 'GET',
+                  dataType: 'text',
+                  success: function(logtext) {
+                    $('#' + device + '-logcat').html(logtext);
+
+                    setTimeout(function () {
+                      logcatBtn.disabled = false;
+                      exportBtn.disabled = false;
+                    }, 2500); // Time in milliseconds
+                  }
+                });
+              });
+
+              $('.logcat-clear-button').click(function() {
+                var device = $(this).data('device');
+                $('#' + device + '-logcat').html('');
+              });
+
+              $('.exportBtn').click(function() {
+                const exportBtn = this;
+                // Disable the button
+                exportBtn.disabled = true;
+
+                const id = $(this).data('device');
+                const dateTime = getCurrentDateTime();
+                const filename = `logcat-${id}-${dateTime}.txt`;
+                const cardContent = document.querySelector('.card-logcat-content').innerText;
+                const blob = new Blob([cardContent], { type: 'text/plain;charset=utf-8' });
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = filename;
+                link.click();
+
+                 setTimeout(function () {
+                    exportBtn.disabled = false;
+                  }, 3500); // Time in milliseconds
+              });
+
+              $('.twitter-button').click(function() {
+                var device = $(this).data('device');
+                $('#' + device + '-twitter').html('');
+                $.ajax({
+                  url: 'twitter/' + device,
+                  type: 'GET',
+                  dataType: 'text',
+                  success: function(twitter) {
+                    $('#' + device + '-twitter').html(twitter);
+                    console.log("Pull twitter success ->", twitter);
+                  }
+                });
+              });
+
+              $('.shell-input').keypress(function(e) {
+                if (e.which == 13) {
+                  var device = $(this).data('device');
+                  input = $('#' + device + '-shell-input').val();
+                  $('#' + device + '-shell-output').html('');
+
+                  $.ajax({
+                    url: '/device/shell/' + device,
+                    type: 'POST',
+                    data: JSON.stringify({ 'device': device, 'command': input }),
+                    processData: false,
+                    contentType: 'application/json',
+                    dataType: 'text',
+                    success: function(result) {
+                      $('#' + device + '-shell-output').html(result);
+                      console.log(result);
+                    }
+                  });
+                }
+              });
+
+              $('.special-key').click(function() {
+                var device = $(this).data('device');
+                var key = $(this).data('key');
+
+                $.ajax({
+                  url: '/device/key/' + device,
+                  type: 'POST',
+                  data: JSON.stringify({ 'device': device, 'key': key }),
+                  processData: false,
+                  dataType: 'text',
+                  success: function(result) {
+                    console.log(result);
+                    if (result === 'OK') {
+                      setTimeout(function() {
+                        $('.fa-camera[data-device=' + device + ']').trigger('click');
+                      }, 1500);
+                    }
+                  }
+                });
+              });
+
+              $('.screenshot-button').click(function() {
+                const screenshotBtn = this;
+                screenshotBtn.disabled = true;
+
+                var device = $(this).data('device');
+                $('#' + device + '-screenshot').html('');
+                $.ajax({
+                    url: '/device/screenshot/' + device,
+                    type: 'GET',
+                    xhrFields: {
+                        responseType: 'blob'
+                    },
+                    success: function(blob) {
+                        const img = document.createElement('img');
+                        const url = URL.createObjectURL(blob);
+                        img.src = url;
+                        img.style.width = '100%';
+                        img.style.height = 'auto';
+
+                        $('#' + device + '-screenshot').html(img);
+
+                        const exportBtn = document.getElementById('exportScreenshotBtn');
+                        exportBtn.disabled = false;
+                        exportBtn.onclick = function() {
+                            const link = document.createElement('a');
+                            link.href = url;
+                            link.download = `screenshot-${device}-${getCurrentDateTime()}.png`;
+                            link.click();
+                        };
+
+                        setTimeout(function() {
+                            screenshotBtn.disabled = false;
+                        }, 2500); // Time in milliseconds
+                    },
+                    error: function(err) {
+                        console.error("Error capturing screenshot:", err);
+                        screenshotBtn.disabled = false;
+                    }
+                });
+            });
+              
+          $('.screenshot-clear-button').click(function() {
+            var device = $(this).data('device');
+            $('#' + device + '-screenshot').html('');
+          });
+
+            function getCurrentDateTime() {
+                const now = new Date();
+                return now.toISOString().slice(0, 19).replace(/[-:T]/g, '');
+            }
+
+              $('.text-input').keypress(function(e) {
+                if (e.which == 13) {
+                  var device = $(this).data('device');
+                  input = $('#' + device + '-text-input').val();
+                  $('#' + device + '-text-output').html('');
+
+                  $.ajax({
+                    url: '/device/text/' + device,
+                    type: 'POST',
+                    data: JSON.stringify({ 'device': device, 'text': input }),
+                    processData: false,
+                    dataType: 'text',
+                    success: function(result) {
+                      console.log(result);
+                      if (result == 'OK') {
+                        setTimeout(function() {
+                          $('.fa-camera[data-device=' + device + ']').trigger('click');
+                        }, 1500);
+                      }
+                    }
+                  });
+                }
+              });
+              },error: (error) => {
+                console.log("Error ->", error);
+            }, statusCode: {
+                404: function() {
+                    $('#is-loading').html(``);
+                    $('#connected-step').addClass('wizard-step-danger');
+                    $('#is-missing-device').html(`<i class="fa fa-times"></i><br><br>`)
+                    $('#status-device').html('DEVICE NOT FOUND');
+                    $('#showBridge').html(`<span class="d-inline-block" data-toggle="tooltip" data-title="There's no device is connected">
+                    <button class="btn btn-outline-secondary pe-none" type="button" disabled>No Device</button></span>`)
+                    $('[data-toggle="tooltip"]').tooltip(); // Initialize the tooltip for the new element
+                }
+            }
+          });
+        })
+  </script>
+{% endblock javascripts %}

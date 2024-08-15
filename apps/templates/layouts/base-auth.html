@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html
+  lang="en">
+
+<head>
+    <meta charset="utf-8"/>
+    <meta name="viewport"
+      content="width=device-width, initial-scale=1.0, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0"/>
+    <meta name="description" content="Cold Automation Forensic">
+    <meta name="keywords" content="admin,dashboard,automation,forensic">
+    <meta name="author" content="mrdotss">
+
+    <title>{% block title %}{% endblock %} - CA Forensic </title>
+
+    {% load static %}
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="{% static 'assets/img/icons/brands/neptune.png' %}"/>
+
+    <!-- General CSS Files -->
+{#    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">#}
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css" integrity="sha384-xOolHFLEh07PJGoPkLv1IbcEPTNtaed2xpHsD9ESMhqIYd0nLMwNLD69Npy4HI+N" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.2/css/all.css" integrity="sha384-fnmOCqbTlWIlj8LyTjo7mOUStjsKC4pOpQbqyi7RrhN7udi9RwhKkMHpvLbHG9Sr" crossorigin="anonymous">
+
+    <!-- CSS Libraries -->
+    <link rel="stylesheet" href="{% static 'node_modules/jqvmap/dist/jqvmap.min.css' %}">
+    <link rel="stylesheet" href="{% static 'node_modules/weathericons/css/weather-icons.min.css' %}">
+    <link rel="stylesheet" href="{% static 'node_modules/weathericons/css/weather-icons-wind.min.css' %}">
+    <link rel="stylesheet" href="{% static 'node_modules/summernote/dist/summernote-bs4.css' %}">
+    <link rel="stylesheet" href="{% static 'node_modules/ionicons201/css/ionicons.min.css' %}">
+
+    <!-- Template CSS -->
+    <link rel="stylesheet" href="{% static 'assets/css/style.css' %}">
+    <link rel="stylesheet" href="{% static 'assets/css/components.css' %}">
+
+    <!-- Specific CSS goes HERE -->
+    {% block stylesheets %}{% endblock stylesheets %}
+</head>
+<body>
+    <div id="app">
+        {% block content %}{% endblock content %}
+    </div>
+  {% include "includes/script.html" %}
+
+  <!-- Specific JS goes HERE -->
+  {% block javascripts %}{% endblock javascripts %}
+
+</body>
+</html>

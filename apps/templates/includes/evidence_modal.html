@@ -1,0 +1,38 @@
+<div class="modal fade" tabindex="-1" role="dialog" id="exampleModal-{{ evidence.evidence_id }}">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Chain of Custody</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="row">
+          <div class="col-12">
+            <div class="activities">
+
+                {% for coc_item in evidence.evidence_chain_of_custody %}
+                    <div class="activity">
+                        <div class="activity-icon bg-primary text-white shadow-primary">
+                            <i class="fas fa-arrows-alt"></i>
+                        </div>
+                        <div class="activity-detail">
+                            <div class="mb-2">
+                                <span class="text-job">{{ coc_item.date }}</span>
+                                <span class="bullet"></span>
+                                <a class="text-job" href="#">{{ coc_item.user }}</a>
+                            </div>
+                            <p>{{ coc_item.action }}.</p>
+                            {{ coc_item.detail }}
+                        </div>
+                    </div>
+                {% endfor %}
+
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

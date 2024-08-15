@@ -1,0 +1,100 @@
+{% extends 'layouts/base-auth.html' %}
+
+{% block title %} Register {% endblock title %}
+
+<!-- Specific CSS goes HERE -->
+{% block stylesheets %}
+{% load static %}
+  <!-- CSS Libraries -->
+  <link rel="stylesheet" href="{% static 'node_modules/datatables.net-bs4/css/dataTables.bootstrap4.min.css' %}">
+  <link rel="stylesheet" href="{% static 'node_modules/datatables.net-select-bs4/css/select.bootstrap4.min.css' %}">
+{% endblock stylesheets %}
+
+{% block content %}
+    <section class="section">
+      <div class="container mt-5">
+        <div class="row">
+          <div class="col-12 col-sm-10 offset-sm-1 col-md-8 offset-md-2 col-lg-8 offset-lg-2 col-xl-8 offset-xl-2">
+            <div class="login-brand">
+              <img src="{% static 'assets/img/CAF.png' %}" alt="logo" width="100" class="shadow-light rounded-circle">
+            </div>
+
+            <div class="card card-primary">
+              <div class="card-header"><h4>Register</h4></div>
+
+              <div class="card-body">
+                <form method="POST">
+                    {% csrf_token %}
+                  <div class="row">
+                    <div class="form-group col-6">
+                      <label for="user_name">Name</label>
+                      {{ form.user_name }}
+                      <div id="user_name" class="form-text">{{ form.user_name.errors }}</div>
+                    </div>
+                    <div class="form-group col-6">
+                      <label for="user_email">Email</label>
+                      {{ form.user_email }}
+                      <div id="user_email" class="form-text">{{ form.user_email.errors }}</div>
+                    </div>
+                  </div>
+
+                  <div class="form-group">
+                    <label for="user_roles">Role</label>
+                      {{ form.user_roles }}
+                      <div id="user_roles" class="form-text">{{ form.user_roles.errors }}</div>
+                  </div>
+
+                  <div class="row">
+                    <div class="form-group col-6">
+                      <label for="password1" class="d-block">Password</label>
+                      {{ form.password1 }}
+                      <div id="password1" class="form-text">{{ form.password1.errors }}</div>
+                      <div id="pwindicator" class="pwindicator">
+                        <div class="bar"></div>
+                        <div class="label"></div>
+                      </div>
+                    </div>
+                    <div class="form-group col-6">
+                      <label for="password2" class="d-block">Password Confirmation</label>
+                      {{ form.password2 }}
+                      <div id="password2" class="form-text">{{ form.password2.errors }}</div>
+                    </div>
+                  </div>
+
+                  <div class="form-group">
+                    <button type="submit" class="btn btn-primary btn-lg btn-block">
+                      Register
+                    </button>
+                  </div>
+                    <div class="mt-5 text-center">
+                        Already have an account? <a href="{% url 'caf_login' %}">Login Now</a>
+                    </div>
+                    <div class="text-center mt-5">
+                        <p class="lead mt-4">
+                          {% if messages  %}
+                              {% for message in messages %}
+                                  {{ message }}
+                              {% endfor %}
+                          {% endif %}
+                        </p>
+                    </div>
+                </form>
+              </div>
+            </div>
+            <div class="simple-footer">
+              Copyright &copy; Cold Automation Forensic 2023
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+{% endblock content %}
+
+<!-- Specific JS goes HERE -->
+{% block javascripts %}
+    <!-- JS Libraies -->
+    <script src="{% static 'node_modules/datatables/media/js/jquery.dataTables.min.js' %}"></script>
+    <script src="{% static 'node_modules/datatables.net-bs4/js/dataTables.bootstrap4.min.js' %}"></script>
+    <script src="{% static 'node_modules/datatables.net-select-bs4/js/select.bootstrap4.min.js' %}"></script>
+    <script src="{% static 'assets/js/page/modules-datatables.js' %}"></script>
+{% endblock javascripts %}
