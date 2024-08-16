@@ -87,6 +87,8 @@ Also documented [here](https://s3.wasabisys.com/c343765-a/User-Manual/RAAS%20-%2
 
 ## Future Enhancements
 
+I understand that this application is still less than perfect and that there are many aspects that need improvement. I will continue to work on developing it as effectively and efficiently as possible.
+
 Stay tuned for more features that will be released next year. These features will enhance the capabilities of RAAS, providing more powerful tools for data acquisition and analysis.
 
 
