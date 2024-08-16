@@ -88,3 +88,8 @@ Ensure the following dependencies are installed on your system:
 ## Future Enhancements
 
 Stay tuned for more features that will be released next year. These features will enhance the capabilities of RAAS, providing more powerful tools for data acquisition and analysis.
+
+
+## License
+
+This project use Stisla, and Stisla is under the [MIT License](https://github.com/stisla/stisla/blob/master/LICENSE).
