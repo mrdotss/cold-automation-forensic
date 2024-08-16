@@ -21,7 +21,7 @@ To begin using RAAS, follow these steps to set up your development environment:
 
 ### Prerequisites
 
-Ensure the following dependencies are installed on your system:
+Also documented [here](https://s3.wasabisys.com/c343765-a/User-Manual/RAAS%20-%20User%20Manual%20v1.0.pdf) with  how to use. Ensure the following dependencies are installed on your system:
 
 - **Python 3.10+**
 - **SDK Platform Tools** (Add to your PATH)
@@ -77,7 +77,7 @@ Ensure the following dependencies are installed on your system:
 
 9. **Run the Worker (New Terminal)**:
     ```sh
-    cd raas
+    cd cold-automation-forensic\
     source venv/bin/activate   # On Windows use `venv\Scripts\activate`
     celery -A core worker -l info
     ```
