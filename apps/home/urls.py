@@ -1,6 +1,6 @@
 from django.urls import path
 from apps.home import views
-from apps.caf.gate import get_devices, getLogcat, postShell, postKey, postText, getScreenshot
+from apps.caf.cold_action import getDevices, getLogcat, postShell, postKey, postText, getScreenshot
 
 urlpatterns = [
 
@@ -38,7 +38,7 @@ urlpatterns = [
     path('acquisition-setup/<str:serial_id>/progress/<uuid:unique_code>', views.get_acquisition_setup,
          name='device_acquisition_setup'),
 
-    path('device/api/detail/<str:id>', get_devices),
+    path('device/api/detail/<str:id>', getDevices),
     path('device/logcat/<str:id>', getLogcat),
     path('device/shell/<str:id>', postShell),
     path('device/key/<str:id>', postKey),

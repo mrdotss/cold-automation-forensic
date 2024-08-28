@@ -14,7 +14,7 @@ from channels.layers import get_channel_layer
 
 from apps.home.models import Acquisition
 from core.celery import app
-from apps.caf.gate import ForensicCore
+from apps.caf.ColdForensic import ColdForensic
 
 __all__ = ('app',)
 logger = logging.getLogger(__name__)
@@ -24,7 +24,7 @@ logging.basicConfig(filename="acquisition.log", level=logging.INFO, format='%(as
 def physicalAcquisition(group_name, unique_code):
     channel_layer = get_channel_layer()
     getAcquisitionObject = Acquisition.objects.get(acquisition_unique_link=unique_code)
-    forensic_core = ForensicCore()
+    forensic_core = ColdForensic()
     request_factory = RequestFactory()
 
     IP = getAcquisitionObject.acquisition_client_ip

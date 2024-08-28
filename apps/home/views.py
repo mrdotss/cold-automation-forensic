@@ -11,7 +11,7 @@ from django.contrib.auth.decorators import login_required
 from django.core.serializers.json import DjangoJSONEncoder
 from django.views.generic import ListView, CreateView, UpdateView, DeleteView
 
-from ..caf.gate import ForensicCore, forensic_core
+from ..caf.ColdForensic import ColdForensic
 from .models import Case, User, Evidence, Acquisition
 from .forms import CaseUpdateForm, EvidenceUpdateForm, ChainOfCustodyForm
 from apps.home.asynchronous.task import physicalAcquisition
@@ -167,7 +167,7 @@ def get_acquisition_presetup(request, serial_id, unique_code):
 
         print("Status ->", result.status)  # This will print the current status of the task
 
-    if ForensicCore().checkSerialID(serial_id) and acquisitionObject:
+    if ColdForensic().checkSerialID(serial_id) and acquisitionObject:
         return render(request, 'includes/acquisition_setup.html', {})
     else:
         return HttpResponse("Serial ID not found")
@@ -176,7 +176,7 @@ def get_acquisition_presetup(request, serial_id, unique_code):
 def get_acquisition_setup(request, serial_id, unique_code):
     isUniqueCode = Acquisition.objects.filter(acquisition_unique_link=unique_code).exists()
 
-    if ForensicCore().checkSerialID(serial_id) and isUniqueCode:
+    if ColdForensic().checkSerialID(serial_id) and isUniqueCode:
         getAcquisitionObject = Acquisition.objects.get(acquisition_unique_link=unique_code)
 
         if getAcquisitionObject.acquisition_status in ["progress", "pending", "failed"]:
@@ -190,7 +190,7 @@ def get_acquisition_setup(request, serial_id, unique_code):
 def get_acquisition_save_location(request, serial_id, unique_code):
     isUniqueCode = Acquisition.objects.filter(acquisition_unique_link=unique_code).exists()
 
-    if ForensicCore().checkSerialID(serial_id) and isUniqueCode:
+    if ColdForensic().checkSerialID(serial_id) and isUniqueCode:
         evidenceList = Evidence.objects.select_related('case').values(
             'evidence_id',
             'evidence_description',
@@ -346,7 +346,7 @@ class Devices(View):
 
     def get(self, request):
         context = {
-            'devList': forensic_core.get_select_device(),
+            'devList': ColdForensic().get_select_device(),
         }
         html_template = loader.get_template('home/device.html')
         return HttpResponse(html_template.render(context, request))
@@ -405,9 +405,9 @@ class Acquisitions(View):
 
     def get(self, request, serial_id):
 
-        isDevice = ForensicCore().checkSerialID(serial_id)
-        storage = ForensicCore().getStorage(serial_id)
-        appList = forensic_core.getAppList(serial_id)
+        isDevice = ColdForensic().checkSerialID(serial_id)
+        storage = ColdForensic().getStorage(serial_id)
+        appList = ColdForensic().getAppList(serial_id)
 
         if isDevice:
 
@@ -426,7 +426,7 @@ class Acquisitions(View):
 class AcquisitionSetup(View):
 
     def get(self, request, serial_id, unique_code):
-        isDevice = ForensicCore().checkSerialID(serial_id)
+        isDevice = ColdForensic().checkSerialID(serial_id)
         acquisitionObject = Acquisition.objects.filter(acquisition_unique_link=unique_code).first()
 
         if not isDevice or not acquisitionObject:
@@ -450,7 +450,7 @@ class AcquisitionSetup(View):
         if acquisitionObject.acquisition_status in ["completed"]:
             return HttpResponse(f"Task already {acquisitionObject.acquisition_status}")
 
-        partitionList = ForensicCore().getPartitionList(serial_id)
+        partitionList = ColdForensic().getPartitionList(serial_id)
 
         context = {
             'serial_id': serial_id,
@@ -462,7 +462,7 @@ class AcquisitionSetup(View):
         return render(request, 'home/device-acquisition-setup.html', context)
 
     def post(self, request, serial_id, unique_code):
-        isDevice = ForensicCore().checkSerialID(serial_id)
+        isDevice = ColdForensic().checkSerialID(serial_id)
         acquisitionObject = Acquisition.objects.filter(acquisition_unique_link=unique_code).first()
 
         if not isDevice or not acquisitionObject:
@@ -476,7 +476,7 @@ class AcquisitionSetup(View):
         # Generate a random string for unique identifier
         unique_id = ''.join(random.choices(string.ascii_lowercase + string.digits, k=5))
 
-        if ForensicCore().check_if_hashed_ip(serial_id, ForensicCore().secret_key):
+        if ColdForensic().check_if_hashed_ip(serial_id, ColdForensic().secret_key):
             acquisition_file_name = f"{data['partition_id']}_{current_time}_{unique_id}_wifi.dd"
         else:
             acquisition_file_name = f"{data['partition_id']}_{current_time}_{unique_id}_usb.dd"
@@ -508,7 +508,7 @@ class GenerateUniqueCodeView(View):
     @method_decorator(login_required(login_url='caf_login'))
     def get(self, request, serial_id):
         # Check if the device is valid
-        isDevice = ForensicCore().checkSerialID(serial_id)
+        isDevice = ColdForensic().checkSerialID(serial_id)
         if isDevice:
             # Generate and save the new Acquisition process
             unique_code = uuid.uuid4()
