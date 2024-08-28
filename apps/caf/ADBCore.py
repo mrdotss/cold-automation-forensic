@@ -77,12 +77,3 @@ class ADBCore:
     def install_app(self, apk_path):
         self.logger.info(f'Installing APK from {apk_path}')
         return self.adb(['install', apk_path])
-
-# Usage
-if __name__ == "__main__":
-    adb = ADBCore()
-    try:
-        devices = adb.list_devices()
-        print(devices)
-    except Exception as e:
-        print(e)

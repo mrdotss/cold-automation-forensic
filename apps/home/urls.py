@@ -44,7 +44,5 @@ urlpatterns = [
     path('device/key/<str:id>', postKey),
     path('device/text/<str:id>', postText),
     path('device/screenshot/<str:id>', getScreenshot),
-    # path('device/twitter/<id>', caf_gate.pullTwitter),
-    # path('device/twitter/<id>/more', caf_gate.showTwitter),
 
 ]
