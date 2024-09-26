@@ -141,32 +141,104 @@ class Evidence(models.Model):
 
 
 class Acquisition(models.Model):
-    acquisition_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    evidence = models.ForeignKey(Evidence, on_delete=models.CASCADE, related_name='acquisitions', null=True, blank=True)
-    acquisition_status = models.CharField(max_length=20, choices=[
+    ACQUISITION_TYPE_CHOICES = [
+        ('full_file_system', 'Full File System'),
+        ('logical', 'Logical'),
+        ('physical', 'Physical'),
+    ]
+    ACQUISITION_STATUS_CHOICES = [
         ('pending', 'Pending'),
-        ('progress', 'Progress'),
+        ('in_progress', 'In Progress'),
         ('completed', 'Completed'),
         ('paused', 'Paused'),
         ('failed', 'Failed'),
-        ('error', 'Error')  # If there was an error during acquisition
-    ], default='pending')
-    acquisition_device_id = models.CharField(max_length=50, null=True, blank=True)
-    acquisition_file_name = models.CharField(max_length=255, null=True, blank=True)
-    acquisition_full_path = models.CharField(max_length=255, null=True, blank=True)
-    acquisition_client_ip = models.CharField(max_length=15, blank=True, null=True)
-    acquisition_custom_port = models.CharField(max_length=5, blank=True, null=True)
-    acquisition_partition_id = models.CharField(max_length=100, null=True, blank=True)
-    acquisition_total_transferred_bytes = models.BigIntegerField(default=0, null=True, blank=True)
-    acquisition_size = models.BigIntegerField(default=0, null=True, blank=True)
-    acquisition_size_template = models.DecimalField(max_digits=10, decimal_places=2, default=0, null=True, blank=True)
-    acquisition_unique_link = models.CharField(max_length=255, unique=True)
-    acquisition_type = models.CharField(max_length=50, null=True, blank=True)
-    acquisition_date = models.DateTimeField(auto_now_add=True)
-    acquisition_last_active = models.DateTimeField(null=True, blank=True)
-    acquisition_hash = models.CharField(max_length=64, blank=True, null=True)
-    acquisition_hash_verify = models.CharField(max_length=64, blank=True, null=True)
-    acquisition_is_verify_first = models.BooleanField(null=True, blank=True)
+        ('error', 'Error'),
+    ]
+    CONNECTION_CHOICES = [
+        ('USB', 'USB'),
+        ('WiFi', 'WiFi'),
+    ]
+
+    acquisition_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    evidence = models.ForeignKey(Evidence, on_delete=models.CASCADE, related_name='acquisitions', null=True, blank=True)
+    connection_type = models.CharField(max_length=10, choices=CONNECTION_CHOICES, default='USB')
+    client_ip = models.GenericIPAddressField(protocol='IPv4', blank=True, null=True)
+    port = models.PositiveIntegerField(blank=True, null=True)
+    acquisition_type = models.CharField(blank=True, null=True, max_length=20, choices=ACQUISITION_TYPE_CHOICES)
+    status = models.CharField(max_length=20, choices=ACQUISITION_STATUS_CHOICES, default='pending')
+    device_id = models.CharField(max_length=50, null=True, blank=True)
+    file_name = models.CharField(max_length=255, null=True, blank=True)
+    full_path = models.CharField(max_length=255, null=True, blank=True)
+    date = models.DateTimeField(auto_now_add=True)
+    last_active = models.DateTimeField(null=True, blank=True)
+    size = models.BigIntegerField(default=0, null=True, blank=True)
+    unique_link = models.CharField(max_length=255, unique=True)
 
     def __str__(self):
-        return f"{self.acquisition_status} - {self.acquisition_unique_link}"
+        return f"{self.acquisition_type} Acquisition - {self.status} - {self.date}"
+
+
+class PhysicalAcquisition(models.Model):
+    acquisition = models.OneToOneField(
+        Acquisition,
+        on_delete=models.CASCADE,
+        primary_key=True,
+        related_name='physical'
+    )
+    partition_id = models.CharField(max_length=100, null=True, blank=True)
+    partition_size = models.BigIntegerField(default=0, null=True, blank=True)
+    hash_before_acquisition = models.CharField(max_length=255, null=True, blank=True)
+    hash_after_acquisition = models.CharField(max_length=255, null=True, blank=True)
+    is_verify_first = models.BooleanField(null=True, blank=True)
+    total_transferred_bytes = models.BigIntegerField(default=0, null=True, blank=True)
+    acquisition_method = models.CharField(max_length=50, null=True, blank=True)
+    source_device = models.CharField(max_length=100, null=True, blank=True)
+    start_time = models.DateTimeField(null=True, blank=True)
+    end_time = models.DateTimeField(null=True, blank=True)
+    encryption_status = models.BooleanField(default=False)
+
+    def __str__(self):
+        return f"Physical Details for {self.acquisition}"
+
+
+class LogicalAcquisition(models.Model):
+    acquisition = models.OneToOneField(
+        Acquisition,
+        on_delete=models.CASCADE,
+        primary_key=True,
+        related_name='logical'
+    )
+    data_types_acquired = JSONField(null=True, blank=True)
+    selected_applications = JSONField(null=True, blank=True)
+    selected_files = JSONField(null=True, blank=True)
+    user_accounts = JSONField(null=True, blank=True)
+    total_records = models.IntegerField(null=True, blank=True)
+    hash_result = models.CharField(max_length=64, null=True, blank=True)
+    acquisition_tool = models.CharField(max_length=100, null=True, blank=True)
+    start_time = models.DateTimeField(null=True, blank=True)
+    end_time = models.DateTimeField(null=True, blank=True)
+
+    def __str__(self):
+        return f"Logical Details for {self.acquisition}"
+
+
+class FullFileSystemAcquisition(models.Model):
+    acquisition = models.OneToOneField(
+        Acquisition,
+        on_delete=models.CASCADE,
+        primary_key=True,
+        related_name='full_file_system'
+    )
+    file_system_type = models.CharField(max_length=100, null=True, blank=True)
+    root_directory = models.CharField(max_length=255, null=True, blank=True)
+    total_files = models.IntegerField(null=True, blank=True)
+    total_size = models.BigIntegerField(null=True, blank=True)
+    hash_result = models.CharField(max_length=64, null=True, blank=True)
+    excluded_files = JSONField(null=True, blank=True)
+    encryption_status = models.BooleanField(default=False)
+    decryption_method = models.CharField(max_length=100, null=True, blank=True)
+    start_time = models.DateTimeField(null=True, blank=True)
+    end_time = models.DateTimeField(null=True, blank=True)
+
+    def __str__(self):
+        return f"Full File System Details for {self.acquisition}"

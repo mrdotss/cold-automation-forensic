@@ -11,8 +11,9 @@ from django.test import RequestFactory
 from asgiref.sync import async_to_sync
 from celery import shared_task
 from channels.layers import get_channel_layer
+from django.core.exceptions import ObjectDoesNotExist
 
-from apps.home.models import Acquisition
+from apps.home.models import Acquisition, PhysicalAcquisition
 from core.celery import app
 from apps.caf.ColdForensic import ColdForensic
 
@@ -23,21 +24,24 @@ logging.basicConfig(filename="acquisition.log", level=logging.INFO, format='%(as
 @shared_task
 def physicalAcquisition(group_name, unique_code):
     channel_layer = get_channel_layer()
-    getAcquisitionObject = Acquisition.objects.get(acquisition_unique_link=unique_code)
+    getAcquisitionObject = Acquisition.objects.get(unique_link=unique_code)
     forensic_core = ColdForensic()
     request_factory = RequestFactory()
 
-    IP = getAcquisitionObject.acquisition_client_ip
-    PORT_CLIENT = getAcquisitionObject.acquisition_custom_port
-    LOCATION = getAcquisitionObject.acquisition_full_path
-    FILE_NAME = getAcquisitionObject.acquisition_file_name
-    PARTITION = getAcquisitionObject.acquisition_partition_id
-    PORT_SERVER = getAcquisitionObject.acquisition_custom_port
-    SERIAL_ID = forensic_core.decrypt(getAcquisitionObject.acquisition_device_id, forensic_core.secret_key)
+    IP = getAcquisitionObject.client_ip
+    PORT_CLIENT = getAcquisitionObject.port
+    LOCATION = getAcquisitionObject.full_path
+    FILE_NAME = getAcquisitionObject.file_name
+    PARTITION = getAcquisitionObject.physical.partition_id
+    PORT_SERVER = getAcquisitionObject.port
+    SERIAL_ID = forensic_core.decrypt(getAcquisitionObject.device_id, forensic_core.secret_key)
     acquisition_start_time = datetime.now()
 
+    getAcquisitionObject.physical.start_time = acquisition_start_time
+    getAcquisitionObject.physical.save()
+
     # Check if need to hash before acquisition
-    if getAcquisitionObject.acquisition_is_verify_first and getAcquisitionObject.acquisition_total_transferred_bytes == 0:
+    if hasattr(getAcquisitionObject, 'physical') and getAcquisitionObject.physical.is_verify_first and getAcquisitionObject.physical.total_transferred_bytes == 0:
         async_to_sync(channel_layer.group_send)(
             group_name,
             {
@@ -48,8 +52,8 @@ def physicalAcquisition(group_name, unique_code):
 
         try:
             hashOutput = forensic_core.hashPartition(serial_id=SERIAL_ID, partition_id=PARTITION)
-            getAcquisitionObject.acquisition_hash_verify = hashOutput
-            getAcquisitionObject.save()
+            getAcquisitionObject.physical.hash_before_acquisition = hashOutput
+            getAcquisitionObject.physical.save()
 
             async_to_sync(channel_layer.group_send)(
                 group_name,
@@ -72,20 +76,20 @@ def physicalAcquisition(group_name, unique_code):
 
     try:
         # Check if we need to resume
-        seek_skip_block = getAcquisitionObject.acquisition_total_transferred_bytes or 0
+        seek_skip_block = getAcquisitionObject.physical.total_transferred_bytes or 0
 
         android_command = f"adb -s {SERIAL_ID} shell \"su 0 -c 'dd if=/dev/block/{PARTITION} bs=512"
         if seek_skip_block > 0:
-            android_command += (f" skip={getAcquisitionObject.acquisition_total_transferred_bytes//512}")
+            android_command += (f" skip={getAcquisitionObject.physical.total_transferred_bytes//512}")
         android_command += f" | busybox nc -l -p {PORT_SERVER}'\""
         android_process = subprocess.Popen(android_command, shell=True)
         time.sleep(2)
 
-        server_command = f"netcat {IP} {PORT_CLIENT} | dd of={LOCATION}/{FILE_NAME} bs=512 seek={getAcquisitionObject.acquisition_total_transferred_bytes//512}" if seek_skip_block > 0 else f"netcat {IP} {PORT_CLIENT} > {LOCATION}/{FILE_NAME}"
+        server_command = f"netcat {IP} {PORT_CLIENT} | dd of={LOCATION}/{FILE_NAME} bs=512 seek={getAcquisitionObject.physical.total_transferred_bytes//512}" if seek_skip_block > 0 else f"netcat {IP} {PORT_CLIENT} > {LOCATION}/{FILE_NAME}"
         server_process = subprocess.Popen(server_command, shell=True)
         time.sleep(2)
 
-        total_size_kb = int(getAcquisitionObject.acquisition_size)
+        total_size_kb = int(getAcquisitionObject.physical.partition_size)
         total_size_bytes = total_size_kb*1024
         progress = (seek_skip_block / total_size_bytes) * 100 if seek_skip_block > 0 else 0
         last_file_size = seek_skip_block
@@ -163,9 +167,10 @@ def physicalAcquisition(group_name, unique_code):
             current_size = os.path.getsize(f'{LOCATION}/{FILE_NAME}')
             if current_size == last_size:
                 timeout_counter += 1
-                getAcquisitionObject.acquisition_total_transferred_bytes = current_size
+                getAcquisitionObject.physical.total_transferred_bytes = current_size
+                getAcquisitionObject.physical.save()
 
-                if timeout_counter >= TIMEOUT_THRESHOLD and getAcquisitionObject.acquisition_total_transferred_bytes == total_size_bytes:
+                if timeout_counter >= TIMEOUT_THRESHOLD and getAcquisitionObject.physical.total_transferred_bytes == total_size_bytes:
                     terminate_process(server_process)
                     terminate_process(android_process)
 
@@ -175,18 +180,21 @@ def physicalAcquisition(group_name, unique_code):
                     release_file_handles(f'{LOCATION}/{FILE_NAME}')
                     file_path = os.path.join(LOCATION, FILE_NAME)
                     file_hashed = compute_sha256_hash(file_path)
-                    getAcquisitionObject.acquisition_hash = file_hashed
-                    getAcquisitionObject.acquisition_total_transferred_bytes = current_size
-                    getAcquisitionObject.acquisition_status = 'completed'
-                    getAcquisitionObject.acquisition_last_active = datetime.now()
-                    getAcquisitionObject.save()
-
                     acquisition_end_time = datetime.now()
                     acquisition_duration = acquisition_end_time - acquisition_start_time
 
+                    getAcquisitionObject.physical.hash_after_acquisition = file_hashed
+                    getAcquisitionObject.physical.total_transferred_bytes = current_size
+                    getAcquisitionObject.physical.end_time = acquisition_end_time
+                    getAcquisitionObject.physical.save()
+
+                    getAcquisitionObject.status = 'completed'
+                    getAcquisitionObject.last_active = datetime.now()
+                    getAcquisitionObject.save()
+
                     # Create a mock request for internal call
-                    mock_request = request_factory.get(f'/get_devices/{getAcquisitionObject.acquisition_device_id}')
-                    device_info_response = forensic_core.get_devices(mock_request, getAcquisitionObject.acquisition_device_id)
+                    mock_request = request_factory.get(f'/get_devices/{getAcquisitionObject.device_id}')
+                    device_info_response = forensic_core.get_devices(mock_request, getAcquisitionObject.device_id)
                     device_info = json.loads(device_info_response.content)[0]
 
                     # Format the device info properly
@@ -233,8 +241,8 @@ Acquisition Details:
 - Partition: {PARTITION}
 
 Verification:
-- Hash Verification: {getAcquisitionObject.acquisition_is_verify_first}
-- Original Hash: {getAcquisitionObject.acquisition_hash_verify}
+- Hash Verification: {getAcquisitionObject.physical.is_verify_first}
+- Original Hash: {getAcquisitionObject.physical.hash_before_acquisition}
 - Resulting Hash: {file_hashed}"""
 
                     with open(f"{LOCATION}/acquisition_report_{FILE_NAME}.txt", 'w') as report_file:
@@ -251,8 +259,8 @@ Verification:
                     break
 
                 if timeout_counter >= TIMEOUT_THRESHOLD and all(rate == 0 for rate in recent_transfer_rates) and remaining_data > 0:
-                    getAcquisitionObject.acquisition_status = 'failed'
-                    getAcquisitionObject.acquisition_last_active = datetime.now()
+                    getAcquisitionObject.status = 'failed'
+                    getAcquisitionObject.last_active = datetime.now()
                     getAcquisitionObject.save()
                     terminate_process(server_process)
                     terminate_process(android_process)

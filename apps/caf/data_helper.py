@@ -37,6 +37,7 @@ class DeviceProperties:
     id: str
     serial: str
     isWiFi: bool
+    isRooted: bool
     manufacturer: str
     model: str
     sdk: str

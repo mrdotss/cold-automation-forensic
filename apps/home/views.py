@@ -1,3 +1,5 @@
+from lib2to3.fixes.fix_input import context
+
 from django.db.models import F
 from django.views import View
 from django.template import loader
@@ -12,7 +14,7 @@ from django.core.serializers.json import DjangoJSONEncoder
 from django.views.generic import ListView, CreateView, UpdateView, DeleteView
 
 from ..caf.ColdForensic import ColdForensic
-from .models import Case, User, Evidence, Acquisition
+from .models import Case, User, Evidence, Acquisition, PhysicalAcquisition
 from .forms import CaseUpdateForm, EvidenceUpdateForm, ChainOfCustodyForm
 from apps.home.asynchronous.task import physicalAcquisition
 import time, random, string, json, uuid
@@ -151,13 +153,17 @@ def get_evidence_modal_data(request, evidence_id):
 
 @login_required(login_url='caf_login')
 def get_acquisition_presetup(request, serial_id, unique_code):
-    acquisitionObject = Acquisition.objects.filter(acquisition_unique_link=unique_code).first()
+    print(f"Serial: {serial_id} | Unique: {unique_code}")
 
-    if acquisitionObject.acquisition_status in ["progress", "pending", "failed"]:
+    acquisitionObject = Acquisition.objects.get(unique_link=unique_code)
 
-        if acquisitionObject.acquisition_status == "failed":
+    print(f"Serial: {serial_id} | Unique: {unique_code} | Object: {acquisitionObject}")
+
+    if acquisitionObject.status in ["progress", "pending", "failed"]:
+
+        if acquisitionObject.status == "failed":
             # Resume the failed acquisition
-            acquisitionObject.acquisition_status = "progress"
+            acquisitionObject.status = "progress"
             acquisitionObject.save()
 
         result = physicalAcquisition.delay('physical-acquisition-progress_%s' % serial_id, unique_code)
@@ -174,21 +180,21 @@ def get_acquisition_presetup(request, serial_id, unique_code):
 
 @login_required(login_url='caf_login')
 def get_acquisition_setup(request, serial_id, unique_code):
-    isUniqueCode = Acquisition.objects.filter(acquisition_unique_link=unique_code).exists()
+    isUniqueCode = Acquisition.objects.filter(unique_link=unique_code).exists()
 
     if ColdForensic().checkSerialID(serial_id) and isUniqueCode:
-        getAcquisitionObject = Acquisition.objects.get(acquisition_unique_link=unique_code)
+        getAcquisitionObject = Acquisition.objects.get(unique_link=unique_code)
 
-        if getAcquisitionObject.acquisition_status in ["progress", "pending", "failed"]:
+        if getAcquisitionObject.status in ["progress", "pending", "failed"]:
             return render(request, 'includes/acquisition_progress.html', {'acquisitionObject': getAcquisitionObject})
-        # if getAcquisitionObject.acquisition_status in ["failed"]:
+        # if getAcquisitionObject.status in ["failed"]:
         #     return render(request, 'home/device-acquisition-resume.html', {'acquisitionObject': getAcquisitionObject})
 
     return HttpResponse("Serial ID not found")
 
 @login_required(login_url='caf_login')
 def get_acquisition_save_location(request, serial_id, unique_code):
-    isUniqueCode = Acquisition.objects.filter(acquisition_unique_link=unique_code).exists()
+    isUniqueCode = Acquisition.objects.filter(unique_link=unique_code).exists()
 
     if ColdForensic().checkSerialID(serial_id) and isUniqueCode:
         evidenceList = Evidence.objects.select_related('case').values(
@@ -363,6 +369,7 @@ class DevicesDetail(View):
             'deviceID': dev_id,
 
         }
+
         html_template = loader.get_template('home/device-detail.html')
         return HttpResponse(html_template.render(context, request))
 
@@ -408,6 +415,7 @@ class Acquisitions(View):
         isDevice = ColdForensic().checkSerialID(serial_id)
         storage = ColdForensic().getStorage(serial_id)
         appList = ColdForensic().getAppList(serial_id)
+        isRooted = ColdForensic().isRooted(serial_id)
 
         if isDevice:
 
@@ -415,6 +423,7 @@ class Acquisitions(View):
                 'serial_id': serial_id,
                 'storage': storage,
                 'appList': appList,
+                'isRooted': isRooted,
             }
             html_template = loader.get_template('home/device-acquisition.html')
             return HttpResponse(html_template.render(context, request))
@@ -427,19 +436,30 @@ class AcquisitionSetup(View):
 
     def get(self, request, serial_id, unique_code):
         isDevice = ColdForensic().checkSerialID(serial_id)
-        acquisitionObject = Acquisition.objects.filter(acquisition_unique_link=unique_code).first()
+        acquisitionObject = Acquisition.objects.filter(unique_link=unique_code).first()
 
         if not isDevice or not acquisitionObject:
             return HttpResponse("Device or acquisition process not found")
 
-        acquisitionHistory = Acquisition.objects.filter(acquisition_device_id=serial_id).values(
-            'acquisition_id', 'acquisition_status', 'acquisition_full_path', 'acquisition_file_name',
-            'acquisition_date', 'acquisition_partition_id', 'acquisition_size', 'acquisition_unique_link',
-            'acquisition_hash'
+        acquisitionHistory = Acquisition.objects.filter(device_id=serial_id).select_related('physical').values(
+            'acquisition_id', 'status', 'full_path', 'file_name',
+            'date', 'physical__partition_id', 'physical__partition_size', 'unique_link',
+            'physical__hash_after_acquisition'
         )
 
+        # For FFS method
+        if acquisitionObject.acquisition_type == "full-file-system":
+            fileSystemList = ColdForensic().getFullFileSystem(serial_id)
+
+            context = {
+                'file_system_list': fileSystemList,
+                'acquisitionHistory': acquisitionHistory,
+            }
+
+            return render(request, 'home/device-acquisition-ffs-setup.html', context)
+
         # Check if the acquisition needs to resume
-        if acquisitionObject.acquisition_total_transferred_bytes > 0 and acquisitionObject.acquisition_status == "failed":
+        if hasattr(acquisitionObject, 'physical') and acquisitionObject.physical.total_transferred_bytes > 0 and acquisitionObject.status == "failed":
             context = {
                 'serial_id': serial_id,
                 'acquisitionProcess': acquisitionObject,
@@ -447,8 +467,8 @@ class AcquisitionSetup(View):
             }
             return render(request, 'home/device-acquisition-resume.html', context)
 
-        if acquisitionObject.acquisition_status in ["completed"]:
-            return HttpResponse(f"Task already {acquisitionObject.acquisition_status}")
+        if acquisitionObject.status in ["completed"]:
+            return HttpResponse(f"Task already {acquisitionObject.status}")
 
         partitionList = ColdForensic().getPartitionList(serial_id)
 
@@ -459,11 +479,11 @@ class AcquisitionSetup(View):
             'acquisitionHistory': acquisitionHistory,
         }
 
-        return render(request, 'home/device-acquisition-setup.html', context)
+        return render(request, 'home/device-acquisition-physical-setup.html', context)
 
     def post(self, request, serial_id, unique_code):
         isDevice = ColdForensic().checkSerialID(serial_id)
-        acquisitionObject = Acquisition.objects.filter(acquisition_unique_link=unique_code).first()
+        acquisitionObject = Acquisition.objects.filter(unique_link=unique_code).first()
 
         if not isDevice or not acquisitionObject:
             return HttpResponse("Device or acquisition process not found")
@@ -476,29 +496,53 @@ class AcquisitionSetup(View):
         # Generate a random string for unique identifier
         unique_id = ''.join(random.choices(string.ascii_lowercase + string.digits, k=5))
 
-        if ColdForensic().check_if_hashed_ip(serial_id, ColdForensic().secret_key):
-            acquisition_file_name = f"{data['partition_id']}_{current_time}_{unique_id}_wifi.dd"
-        else:
-            acquisition_file_name = f"{data['partition_id']}_{current_time}_{unique_id}_usb.dd"
+        is_wifi, decrypted_id = ColdForensic().check_if_hashed_ip(serial_id, ColdForensic().secret_key)
+        connection_type = 'WiFi' if is_wifi else 'USB'
+
+        acquisition_file_name = f"{data['partition_id']}_{current_time}_{unique_id}_{connection_type.lower()}.dd"
 
         # Convert checkbox_value to boolean or integer
         acquisition_is_verify_first = data['checkbox_value'] == 'true'
 
-        # Update acquisition object
+        # Retrieve the evidence object based on the provided evidence_name
         evidence = Evidence.objects.get(evidence_id=data['evidence_name'])
-        Acquisition.objects.filter(acquisition_unique_link=unique_code).update(
-            evidence_id=evidence.evidence_id,
-            acquisition_is_verify_first=acquisition_is_verify_first,
-            acquisition_type=evidence.evidence_type,
-            acquisition_partition_id=data['partition_id'],
-            acquisition_size=data['partition_size'],
-            acquisition_file_name=acquisition_file_name,
-            acquisition_full_path=data['full_path'],
-            acquisition_client_ip=data['client_ip'],
-            acquisition_custom_port=data['custom_port'],
-            acquisition_status="progress",
-            acquisition_size_template=round(int(data['partition_size']) / 1000000, 2)
+
+        # Calculate the acquisition size template (convert partition size to MB)
+        acquisition_size_template = round(int(data['partition_size']) / 1000000, 2)
+
+        # Check if a PhysicalAcquisition already exists for this Acquisition
+        physical_acquisition, created = PhysicalAcquisition.objects.get_or_create(
+            acquisition=acquisitionObject,
+            defaults={
+                'partition_id': data['partition_id'],
+                'partition_size': data['partition_size'],
+                'is_verify_first': acquisition_is_verify_first,
+                'acquisition_method': "dd",
+                'source_device': f"/dev/block/{data['partition_id']}",
+            }
         )
+
+        # If it already exists, you can update the necessary fields
+        if not created:
+            physical_acquisition.partition_id = data['partition_id']
+            physical_acquisition.partition_size = data['partition_size']
+            physical_acquisition.is_verify_first = acquisition_is_verify_first
+            physical_acquisition.acquisition_method = "dd"
+            physical_acquisition.source_device = f"/dev/block/{data['partition_id']}"
+            physical_acquisition.save()
+
+        # Update acquisition object
+        acquisitionObject.evidence_id = evidence.evidence_id
+        acquisitionObject.connection_type = connection_type
+        acquisitionObject.file_name = acquisition_file_name
+        acquisitionObject.full_path = data['full_path']
+        acquisitionObject.client_ip = data.get('client_ip')  # Handle optional fields safely
+        acquisitionObject.port = data.get('custom_port')
+        acquisitionObject.status = "progress"
+        acquisitionObject.size = round(int(data['partition_size']) / 1000000, 2)
+
+        # Save the updated acquisition object
+        acquisitionObject.save()
 
         print("POST Data ->", data)
         return HttpResponse("Task started..")
@@ -506,15 +550,16 @@ class AcquisitionSetup(View):
 
 class GenerateUniqueCodeView(View):
     @method_decorator(login_required(login_url='caf_login'))
-    def get(self, request, serial_id):
+    def get(self, request, serial_id, acquire_method):
         # Check if the device is valid
         isDevice = ColdForensic().checkSerialID(serial_id)
         if isDevice:
             # Generate and save the new Acquisition process
             unique_code = uuid.uuid4()
             Acquisition.objects.create(
-                acquisition_device_id=serial_id,
-                acquisition_unique_link=unique_code
+                device_id=serial_id,
+                unique_link=unique_code,
+                acquisition_type=acquire_method
             )
             return JsonResponse({'success': True, 'unique_code': str(unique_code)})
         else:

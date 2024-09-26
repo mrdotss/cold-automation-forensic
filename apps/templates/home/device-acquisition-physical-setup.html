@@ -1,0 +1,456 @@
+{% extends 'layouts/base.html' %}
+
+{% block title %} Physical Acquisition {% endblock title %}
+
+<!-- Specific CSS goes HERE -->
+{% block stylesheets %}
+{% load static %}
+  <!-- CSS Libraries -->
+  <link rel="stylesheet" href="{% static 'node_modules/datatables.net-bs4/css/dataTables.bootstrap4.min.css' %}">
+  <link rel="stylesheet" href="{% static 'node_modules/datatables.net-select-bs4/css/select.bootstrap4.min.css' %}">
+  <link rel="stylesheet" href="{% static 'node_modules/select2/dist/css/select2.min.css' %}">
+  <link rel="stylesheet" href="{% static 'node_modules/selectric/public/selectric.css' %}">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-select/1.13.18/css/bootstrap-select.min.css" integrity="sha512-ARJR74swou2y0Q2V9k0GbzQ/5vJ2RBSoCWokg4zkfM29Fb3vZEQyv0iWBMW/yvKgyHSR/7D64pFMmU8nYmbRkg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+  <style>
+      .selected {
+        background-color: #e0e0e0; /* or any color you prefer */
+    }
+
+  </style>
+{% endblock stylesheets %}
+
+{% block content %}
+    <div class="section-header">
+        <h1>Lab</h1>
+        <div class="section-header-breadcrumb">
+          <div class="breadcrumb-item active"><a href="#">Lab</a></div>
+          <div class="breadcrumb-item">Data Extraction</div>
+        </div>
+    </div>
+
+    <div class="section-body">
+        <h2 class="section-title">Physical Acquisition</h2>
+        <p class="section-lead">Selecting partition</p>
+
+         <div id="top-right-alert" class="alert alert-primary alert-dismissible fade show">
+            <div class="alert-body">
+                <button class="close" data-dismiss="alert">
+                    <span>&times;</span>
+                </button>
+                This is a primary alert.
+            </div>
+        </div>
+
+        <div class="row">
+
+          <div class="col-12 col-md-5 col-lg-5">
+            <div class="card">
+              <div class="card-body card-root-acquisition-setup">
+
+                <div class="card-1st">
+                  <div class="card-header">
+                    <h4>
+                        <span class="d-inline-block" data-toggle="tooltip" data-title="Currently we extract data via ADB with root access.">
+                        <button class="btn btn-outline-dark" type="button" disabled>Beta</button>
+                        </span>
+                    </h4>
+                  </div>
+
+
+                  <div class="card-body">
+
+                    <div class="d-flex justify-content-between align-items-center">
+                      <span class="d-inline-block" data-toggle="tooltip" data-title="Select the partition first and then you can start the acquisition.">
+                        <button id="acquisition-btn" class="btn btn-primary" disabled>Acquisition</button>
+                      </span>
+
+                      <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="gridCheck">
+                        <label class="form-check-label" for="gridCheck">
+                            <strong>Verify the result</strong>
+                            <span class="d-inline-block" data-toggle="tooltip"
+                                data-title="We'll hash the selected partition before running the acquisition, then compare the hash result of the acquisition with the hash before the acquisition. (This will take more time)">
+                                <i class="fas fa-question-circle"></i>
+                            </span>
+                        </label>
+                      </div>
+                    </div>
+
+                      <br><br>
+                      <div class="table-responsive">
+                          <table class="table table-bordered table-md" id="table-1">
+                              <thead>
+                                <tr>
+                                  <th>Name</th>
+                                  <th>Blocks (Kilobyte)</th>
+                                  <th>Minor</th>
+                                  <th>Major</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                              {% for partition in partitionList %}
+                                <tr>
+                                  <td>{{ partition.name }}</td>
+                                  <td>{{ partition.blocks }}</td>
+                                  <td>{{ partition.minor }}</td>
+                                  <td>{{ partition.major }}</td>
+                                </tr>
+                              {% endfor %}
+                              </tbody>
+                          </table>
+                      </div>
+                  </div>
+                </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-12 col-md-7 col-lg-7">
+                <div class="card">
+                  <div class="card-header">
+                    <h4>Acquisition History for Device ID: {{ serial_id }}</h4>
+                    <div class="card-header-action">
+                      <a data-collapse="#mycard-collapse" class="btn btn-icon btn-light" href="#"><i class="fas fa-minus"></i></a>
+                    </div>
+                  </div>
+                  <div class="collapse show" id="mycard-collapse">
+                    <div class="card-body">
+                        <table class="table table-striped">
+                          <thead>
+                            <tr>
+                              <th scope="col">#</th>
+                              <th scope="col">ID</th>
+                              <th scope="col">Partition</th>
+                              <th scope="col">Block</th>
+                              <th scope="col">Status</th>
+                              <th scope="col">Date</th>
+                              <th scope="col">Action</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                          {% for acquisition in acquisitionHistory %}
+                            <tr>
+                              <th scope="row">{{ forloop.counter }}</th>
+                              <td>
+                                  <span class="d-inline-block" data-toggle="tooltip" data-title="{{ acquisition.acquisition_id }}">
+                                    <button class="btn btn-outline-info" type="button" disabled>ID</button>
+                                  </span>
+                              </td>
+                              <td>{{ acquisition.physical__partition_id }}</td>
+                              <td>{{ acquisition.physical__partition_size }}</td>
+                              <td>
+                                  {% if acquisition.status == "pending" %}
+                                    <div class="badge badge-warning">Pending</div>
+                                  {% elif acquisition.acquisition_status == "progress" %}
+                                    <div class="badge badge-primary">Progress</div>
+                                  {% elif acquisition.acquisition_status == "completed" %}
+                                    <div class="badge badge-success">Completed</div>
+                                  {% elif acquisition.acquisition_status == "paused" %}
+                                    <div class="badge badge-info">Paused</div>
+                                  {% elif acquisition.acquisition_status == "error" %}
+                                    <div class="badge badge-danger">Error</div>
+                                  {% elif acquisition.acquisition_status == "failed" %}
+                                    <div class="badge badge-light">Failed</div>
+                                  {% endif %}
+                              </td>
+                              <td>{{ acquisition.date }}</td>
+                              <td>
+                                  <a class="btn btn-icon btn-info"data-toggle="tooltip" href="/device/acquisition/{{ serial_id }}/setup/{{ acquisition.unique_link }}"
+                                     data-title="Show the process"><i class="fas fa-eye"></i></a>
+                                  {% if  acquisition.full_path %}
+                                      <button class="btn btn-icon btn-warning" data-toggle="modal"
+                                     data-target="#filePathModal-{{ acquisition.acquisition_id }}">
+                                      <i class="fas fa-folder" data-toggle="tooltip" data-title="More details"></i></button>
+                                  {% else %}
+                                        <button class="btn btn-icon btn-warning disabled" data-toggle="tooltip" data-title="Not found">
+                                      <i class="fas fa-folder"></i></button>
+                                  {% endif %}
+
+                              </td>
+                            </tr>
+                          {% endfor %}
+
+                          </tbody>
+                        </table>
+                    </div>
+                    <div class="card-footer">
+                      <strong>Note: Please kindly check the images in the given path above.</strong>
+                    </div>
+                  </div>
+                </div>
+            </div>
+          </div>
+        </div>
+{% endblock content %}
+
+{% block modalstuff %}
+    {% for acquisition in acquisitionHistory %}
+        {% if acquisition.acquisition_full_path %}
+            <div class="modal fade" tabindex="-1" role="dialog" id="filePathModal-{{ acquisition.acquisition_id }}">
+              <div class="modal-dialog modal-dialog-centered" role="document"  style="width: 600px; max-width: 90%;">
+                <div class="modal-content">
+                  <div class="modal-header">
+                    <h5 class="modal-title">Detail ID of {{ acquisition.acquisition_id }}</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                      <span aria-hidden="true">&times;</span>
+                    </button>
+                  </div>
+                  <div class="modal-body">
+                    <p>
+                        <strong>Path</strong>: {{ acquisition.acquisition_full_path }}/{{ acquisition.acquisition_file_name }}<br>
+                        <strong>Hash SHA256</strong>: {{ acquisition.acquisition_hash }}
+                    </p>
+                  </div>
+                  <div class="modal-footer bg-whitesmoke br">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+        {% endif %}
+    {% endfor %}
+{% endblock modalstuff %}
+
+<!-- Specific JS goes HERE -->
+{% block javascripts %}
+    <!-- JS Libraies -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.min.js"></script>
+    <script src="{% static 'node_modules/select2/dist/js/select2.full.min.js' %}"></script>
+    <script src="{% static 'node_modules/datatables.net-select-bs4/js/select.bootstrap4.min.js' %}"></script>
+    <script src="{% static 'node_modules/selectric/public/jquery.selectric.min.js' %}"></script>
+    <script src="{% static 'assets/js/page/forms-advanced-forms.js' %}"></script>
+    <script>
+        let columns;
+
+        $(document).ready(function() {
+            const $acquisitionBtn = $('#acquisition-btn');
+            const $rows = $('#table-1 tbody tr');
+
+            $rows.on('click', function() {
+                // Extract data from the selected row
+                columns = $(this).find('td').map(function() {
+                    return $(this).text();
+                }).get();
+
+                if ($(this).hasClass('selected')) {
+                    // If the row is already selected, unselect it
+                    $(this).removeClass('selected');
+                    $acquisitionBtn.prop('disabled', true);
+                } else {
+                    // If the row is not selected, deselect all other rows and select this one
+                    $('#table-1 tbody tr').removeClass('selected');
+                    $(this).addClass('selected');
+                    $acquisitionBtn.prop('disabled', false);
+                }
+
+                // Log the selected data
+                console.log("Selected partition:", columns[0]);
+            });
+        });
+    </script>
+
+    <script>
+        $(document).ready(function() {
+            const $acquisitionBtn = $('#acquisition-btn');
+            const $tableContainer  = $('.card-1st'); // This is an example element for your acquisition setup
+            const $checkbox = $('#gridCheck');
+            
+            // Check acquisition status on load
+            const acquisitionStatus = '{{ acquisitionProcess.acquisition_status }}';
+            const transferredBytes = '{{ acquisitionProcess.acquisition_total_transferred_bytes }}';
+            if (acquisitionStatus === 'progress' || transferredBytes > 0) {
+                fetchNewProgress();
+            }
+
+            // Log checkbox value when it changes
+            $checkbox.on('change', function() {
+                const isChecked = $(this).is(':checked');
+                console.log('Checkbox checked:', isChecked);
+            });
+
+            $acquisitionBtn.on('click', function() {
+
+                // Fade out the table
+                $tableContainer.fadeOut(function() {
+
+                    // Fetch the acquisition setup template using AJAX
+                    $.get('/acquisition-setup/{{ serial_id }}/save-location/{{ acquisitionProcess.unique_link }}', function(data) {
+                        $('.card-root-acquisition-setup').html(data).fadeIn(function() {
+                            $('[data-toggle="tooltip"]').tooltip();
+                        });
+
+                        // Start the WebSocket connection
+                        $('#location-form').on('submit', function(e){
+                            const form = $(this);
+                            const isChecked = $checkbox.is(':checked');
+                            const checkboxValue = isChecked ? 'true' : 'false';
+                            console.log('Checkbox value before form submission:', checkboxValue);
+                            
+                            const formData = form.serialize() + "&serial_id=" + "{{ serial_id }}" + "&partition_id="
+                                            + columns[0] + "&partition_size=" + columns[1] + "&checkbox_value=" + checkboxValue; // Add checkbox value
+
+                            const CSRF_TOKEN = getCookie('csrftoken');
+                            e.preventDefault(); // Prevent the default form submission
+                            $.ajax({
+                                type: 'POST',
+                                headers: {
+                                            'X-CSRFToken': CSRF_TOKEN
+                                        },
+                                url: form.attr('action'),
+                                data: formData,
+                                success: function (data) {
+                                    console.log("Hasil data:", data);
+                                    console.log("Selected partition:", columns[0]);
+                                },
+                                error: function(err) {
+                                    console.log("Error:", err);
+                                }
+                            });
+                            $('#location-form').fadeOut();
+
+                            // Establish WebSocket connection
+                            establishWebSocketConnection();
+                        });
+                    });
+                });
+            });
+
+            function establishWebSocketConnection() {
+                const prefix = (window.location.protocol === 'https:') ? 'wss://' : 'ws://';
+                const ws_url = prefix + window.location.host + '/ws/progress/{{ serial_id }}/physical-acquisition';
+                const coldSocket = new WebSocket(ws_url);
+
+                var isAcquisitionStarted = false;
+                let connectionID;
+
+                coldSocket.onmessage = function(e) {
+                    const data = JSON.parse(e.data);
+                    console.log('Data:', data);
+
+                    const $progressHeader = $('.progress-header');
+                    const $estimatedTime = $('.estimated-time');
+                    $progressHeader.html(data['message']);
+
+                    // Handle the case where estimated_time_remaining is "calculating..."
+                    if (data['estimated_time_remaining'] === "calculating...") {
+                        $estimatedTime.html("Calculating time remaining...");
+                    } else if (data.hasOwnProperty('estimated_time_remaining')) {
+                        $estimatedTime.html(data['estimated_time_remaining'] + " seconds remaining");
+                    }
+
+                    switch (data['type']) {
+                        case "connection_established":
+                            console.log("Current state:", data['type']);
+                            connectionID = data['connection_id'];
+                            fetchPreProgress();
+                            setTimeout(() => {
+                                coldSocket.send(JSON.stringify({
+                                    'pre-setup': true,
+                                    'start': false
+                                }));
+
+                            }, 2000);
+                            break;
+
+                        case "preparing":
+                            console.log("Current state:", data['type']);
+                            if (!isAcquisitionStarted) {
+                                setTimeout(() => {
+                                    coldSocket.send(JSON.stringify({
+                                        'start': true
+                                    }));
+                                }, 2000);
+                            }
+                            break;
+
+                        case "starting":
+                            console.log("Current state:", data['type']);
+                            if (!isAcquisitionStarted) {
+                                setTimeout(() => {
+                                    $('.loader-spin').fadeOut();
+                                    coldSocket.send(JSON.stringify({
+                                        'send_progress': true
+                                    }));
+                                    isAcquisitionStarted = true;
+                                }, 2000);
+                            }
+                            break;
+
+                        case "send_progress":
+                            console.log("Current state:", data['type']);
+                            setTimeout(() => {
+                                fetchNewProgress();
+                            }, 1500);
+                            break;
+
+                        case "update_progress":
+                             setTimeout(() => {
+                                var progress = data['update_progress'];
+                                var progressBar = document.getElementById('progressBar');
+                                if (progressBar) {
+                                    var progressPercent = progress.toFixed(2);
+                                    progressBar.style.width = progressPercent + '%';
+                                    progressBar.setAttribute('aria-valuenow', progressPercent);
+                                    progressBar.textContent = progressPercent + '%';
+                                } else {
+                                    console.error("progressBar element not found");
+                                }
+                            }, 2000);
+                            break;
+
+                        case "acquisition_completed":
+                            console.log("Current state:", data['type']);
+                            connectionID = data['connection_id'];
+                            const progressBar = document.getElementById("progressBar");
+                            progressBar.classList.remove("bg-success", "progress-bar-animated", "progress-bar-striped");
+                            break;
+                    }
+                };
+
+                coldSocket.onerror = function(event) {
+                    console.error("WebSocket Error:", event);
+                };
+
+                coldSocket.onclose = function(event) {
+                    console.log(`WebSocket closed, code=${event.code}, reason=${event.reason}. Attempting to reconnect...`);
+                    //setTimeout(function() {
+                      //  establishWebSocketConnection();
+                    //}, 5000);
+                };
+            }
+
+            function fetchNewProgress() {
+                console.log("fetchNewProgress called");
+                $.get('/acquisition-setup/{{ serial_id }}/progress/{{ acquisitionProcess.unique_link }}', function(data) {
+                    $('.acquisition-body').fadeIn().html(data);
+                });
+            }
+
+            function fetchPreProgress() {
+                console.log("fetchPreProgress called");
+                $.get('/acquisition-setup/{{ serial_id }}/pre-progress/{{ acquisitionProcess.unique_link }}', function(data) {
+                    $('.acquisition-body').html(data);
+                    $('.acquisition-body').fadeIn();
+                }).fail(function(jqXHR, textStatus, errorThrown) {
+                    console.error("Request failed: ", textStatus, errorThrown);
+                });
+            }
+        });
+
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                let cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    let cookie = cookies[i].trim();
+                    // Does this cookie string begin with the name we want?
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+    </script>
+{% endblock javascripts %}

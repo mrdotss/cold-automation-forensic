@@ -21,6 +21,24 @@ class ColdForensic:
         self.secret_key = 'very_secret_key'
         self.adb_instance = ADBCore()
 
+
+    def isRooted(self, id):
+        device = id
+
+        if len(id) > 15 and self.checkSerialID(id):
+            device = self.decrypt(id, self.secret_key)
+
+        (rc, out, err) = self.adb_instance.adb(
+            ["shell", 'su -c "id" >/dev/null 2>&1 && echo "root" || echo "unroot"'],
+            device=device
+        )
+
+        if rc != 0:
+            print(err)
+            return []
+
+        return out.strip() == "root"
+
     def isWiFi(self, id):
         """
         Check if the given ID is a valid WiFi address.
@@ -350,6 +368,7 @@ class ColdForensic:
                 id=encrypted_id_or_not,
                 serial=self.decode_bytes_property(self.getProp(id, 'ro.serialno', 'unknown')),
                 isWiFi=self.isWiFi(id),
+                isRooted=self.isRooted(id),
                 manufacturer=self.decode_bytes_property(self.getProp(id, 'ro.product.manufacturer', 'unknown')),
                 model=self.decode_bytes_property(self.getProp(id, 'ro.product.model', 'unknown')),
                 sdk=self.decode_bytes_property(self.getProp(id, 'ro.build.version.sdk', 'unknown')),
@@ -480,3 +499,23 @@ class ColdForensic:
             })
 
         return partitions
+
+    def getFullFileSystem(self,id):
+        device = id
+
+        if len(id) > 15 and self.checkSerialID(id):
+            device = self.decrypt(id, self.secret_key)
+
+        (rc, out, err) = self.adb_instance.adb(["shell", "su 0 -c ls /data/data"], device=device)
+
+        if rc != 0:
+            print(err)
+            return []
+
+        # Add file system directory to the list
+        fileSystemList = []
+
+        for out in out.split('\n'):
+            fileSystemList.append(out)
+
+        return fileSystemList

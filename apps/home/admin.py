@@ -4,7 +4,7 @@ from django.contrib.auth.models import Group
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth.forms import ReadOnlyPasswordHashField
 from django.core.exceptions import ValidationError
-from .models import Case, Log, Evidence, User, Acquisition
+from .models import Case, Log, Evidence, User, Acquisition, PhysicalAcquisition, LogicalAcquisition, FullFileSystemAcquisition
 
 
 # Register your models here.
@@ -87,3 +87,6 @@ admin.site.register(Case)
 admin.site.register(Log)
 admin.site.register(Evidence)
 admin.site.register(Acquisition)
+admin.site.register(PhysicalAcquisition)
+admin.site.register(LogicalAcquisition)
+admin.site.register(FullFileSystemAcquisition)

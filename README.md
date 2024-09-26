@@ -4,17 +4,6 @@
 
  **CAF (Cold Automation Forensic)**, a web application designed to streamline the remote acquisition of data from Android devices.
 
-## Key Features
-
-CAF provides an array of powerful features to enhance the digital forensic investigation process:
-
-- **Remote Data Acquisition**: Efficiently collect digital evidence from Android devices remotely. *(Note: Currently supports only physical acquisition)*.
-- **Secure Data Handling**: Ensure safe and secure data acquisition processes to maintain the integrity of digital evidence.
-- **Evidence Information Retrieval**: Retrieve comprehensive information about acquired evidence, including metadata and timestamps.
-- **Advanced Forensic Tools**: Utilize built-in tools to capture screenshots, access terminal commands, and log app activities directly from your browser.
-- **Evidence and Case Management**: Efficiently manage and organize evidence and cases, ensuring streamlined forensic investigations.
-- **Intuitive UI/UX**: Experience a user-friendly interface designed for ease of use (Currently use Stisla 3 Admin Template).
-
 ## Getting Started
 
 To begin using RAAS, follow these steps to set up your development environment:

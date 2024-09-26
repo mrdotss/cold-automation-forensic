@@ -10,7 +10,7 @@
     <style>
       .card-logcat {
         width: 100%;
-        height: 650px;
+        height: 700px;
         background-color: #f8f9fa;
         border: 1px solid #e9ecef;
         border-radius: 4px;
@@ -204,6 +204,10 @@
                                         <tr>
                                             <td><div class="text-dark mb-1">IMEI</div></td>
                                           <td>{{ devices.0.IMEI }}</td>
+                                        </tr>
+                                        <tr>
+                                            <td><div class="text-dark mb-1">Root Status</div></td>
+                                          <td> <mark>{{ devices.0.isRooted }}</mark> </td>
                                         </tr>
                                         <tr>
                                           <td><div class="text-dark mb-1">Android ID</div></td>

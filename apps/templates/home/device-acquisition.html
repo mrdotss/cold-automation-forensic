@@ -41,17 +41,53 @@
 {#                <p class="lead"></p>#}
                   <br>
 
-                  <button class="btn btn-light"
-                     data-serial-id="{{ serial_id }}" data-toggle="modal"
-                     data-target="#physicalModal-{{ serial_id }}">Physical</button>&nbsp;&nbsp;
+                  {% if isRooted %}
+                      <span class="d-inline-block" data-toggle="tooltip"
+                          data-title="This device is rooted and can be acquired using physical acquisition."
+                          data-placement="bottom">
+    
+                          <button class="btn btn-light"
+                         data-serial-id="{{ serial_id }}" data-toggle="modal"
+                         data-target="#physicalModal-{{ serial_id }}">Physical</button>&nbsp;&nbsp;
+                      </span>
+    
+                      <span class="d-inline-block" data-toggle="tooltip"
+                          data-title="This device is rooted and can be acquired using full file system acquisition."
+                          data-placement="bottom">
+    
+                          <button class="btn btn-light"
+                         data-serial-id="{{ serial_id }}" data-toggle="modal"
+                         data-target="#ffsModal-{{ serial_id }}">Full File System</button>&nbsp;&nbsp;
+                      </span>
+                  {% else %}
+                      <span class="d-inline-block" data-toggle="tooltip"
+                          data-title="This device is not rooted and can't be acquired using physical acquisition."
+                          data-placement="bottom">
+    
+                          <button class="btn btn-light"
+                         data-serial-id="{{ serial_id }}" data-toggle="modal"
+                         data-target="#physicalModal-{{ serial_id }}" disabled>Physical</button>&nbsp;&nbsp;
+                      </span>
+    
+                      <span class="d-inline-block" data-toggle="tooltip"
+                          data-title="This device is not rooted and can't be acquired using full file system acquisition."
+                          data-placement="bottom">
+    
+                          <button class="btn btn-light"
+                         data-serial-id="{{ serial_id }}" data-toggle="modal"
+                         data-target="#ffsModal-{{ serial_id }}" disabled>Full File System</button>&nbsp;&nbsp;
+                      </span>
+                  {% endif %}
+              
+                  <span class="d-inline-block" data-toggle="tooltip"
+                      data-title="[COMING SOON] - this feature will be available soon."
+                      data-placement="bottom">
 
-                  <button class="btn btn-light"
-                     data-serial-id="{{ serial_id }}" data-toggle="modal"
-                     data-target="#ffsModal-{{ serial_id }}" disabled>Full File System</button>&nbsp;&nbsp;
+                      <button class="btn btn-light"
+                        data-serial-id="{{ serial_id }}" data-toggle="modal"
+                        data-target="#logicalleModal-{{ serial_id }}" disabled>Logical</button>
+                  </span>
 
-                  <button class="btn btn-light"
-                     data-serial-id="{{ serial_id }}" data-toggle="modal"
-                     data-target="#logicalleModal-{{ serial_id }}" disabled>Logical</button>
               </div>
             </div>
           </div>
@@ -79,54 +115,54 @@
               </div>
             </div>
             <div class="col-12">
-                <div class="card">
-                  <div class="card-body">
-                      <li class="media">
-                        <a href="#" class="btn btn-icon btn-danger mr-3 rounded" ><i class="fas fa-file"></i></a>
-                        <div class="media-body">
-                          <div class="media-right">167kb</div>
-                          <div class="media-title"><a href="#">design-components.pdf</a></div>
-                          <div class="text-small text-muted">09.14.21</div>
-                        </div>
-                      </li>
-                  </div>
-                </div>
-                <div class="card">
-                  <div class="card-body">
-                      <li class="media">
-                        <a href="#" class="btn btn-icon btn-info mr-3 rounded" ><i class="fas fa-code"></i></a>
-                        <div class="media-body">
-                          <div class="media-right">14kb</div>
-                          <div class="media-title"><a href="#">MainFragment.kt</a></div>
-                          <div class="text-small text-muted">09.03.21</div>
-                        </div>
-                      </li>
-                  </div>
-                </div>
-                <div class="card">
-                  <div class="card-body">
-                      <li class="media">
-                        <a href="#" class="btn btn-icon btn-info mr-3 rounded" ><i class="fas fa-code"></i></a>
-                        <div class="media-body">
-                          <div class="media-right">72kb</div>
-                          <div class="media-title"><a href="#">MainViewModel.kt</a></div>
-                          <div class="text-small text-muted">08.28.21</div>
-                        </div>
-                      </li>
-                  </div>
-                </div>
-                <div class="card">
-                  <div class="card-body">
-                      <li class="media">
-                        <a href="#" class="btn btn-icon btn-danger mr-3 rounded" ><i class="fas fa-file"></i></a>
-                        <div class="media-body">
-                          <div class="media-right">167kb</div>
-                          <div class="media-title"><a href="#">Guidelines.pdf</a></div>
-                          <div class="text-small text-muted">08.26.21</div>
-                        </div>
-                      </li>
-                  </div>
-                </div>
+{#                <div class="card">#}
+{#                  <div class="card-body">#}
+{#                      <li class="media">#}
+{#                        <a href="#" class="btn btn-icon btn-danger mr-3 rounded" ><i class="fas fa-file"></i></a>#}
+{#                        <div class="media-body">#}
+{#                          <div class="media-right">167kb</div>#}
+{#                          <div class="media-title"><a href="#">design-components.pdf</a></div>#}
+{#                          <div class="text-small text-muted">09.14.21</div>#}
+{#                        </div>#}
+{#                      </li>#}
+{#                  </div>#}
+{#                </div>#}
+{#                <div class="card">#}
+{#                  <div class="card-body">#}
+{#                      <li class="media">#}
+{#                        <a href="#" class="btn btn-icon btn-info mr-3 rounded" ><i class="fas fa-code"></i></a>#}
+{#                        <div class="media-body">#}
+{#                          <div class="media-right">14kb</div>#}
+{#                          <div class="media-title"><a href="#">MainFragment.kt</a></div>#}
+{#                          <div class="text-small text-muted">09.03.21</div>#}
+{#                        </div>#}
+{#                      </li>#}
+{#                  </div>#}
+{#                </div>#}
+{#                <div class="card">#}
+{#                  <div class="card-body">#}
+{#                      <li class="media">#}
+{#                        <a href="#" class="btn btn-icon btn-info mr-3 rounded" ><i class="fas fa-code"></i></a>#}
+{#                        <div class="media-body">#}
+{#                          <div class="media-right">72kb</div>#}
+{#                          <div class="media-title"><a href="#">MainViewModel.kt</a></div>#}
+{#                          <div class="text-small text-muted">08.28.21</div>#}
+{#                        </div>#}
+{#                      </li>#}
+{#                  </div>#}
+{#                </div>#}
+{#                <div class="card">#}
+{#                  <div class="card-body">#}
+{#                      <li class="media">#}
+{#                        <a href="#" class="btn btn-icon btn-danger mr-3 rounded" ><i class="fas fa-file"></i></a>#}
+{#                        <div class="media-body">#}
+{#                          <div class="media-right">167kb</div>#}
+{#                          <div class="media-title"><a href="#">Guidelines.pdf</a></div>#}
+{#                          <div class="text-small text-muted">08.26.21</div>#}
+{#                        </div>#}
+{#                      </li>#}
+{#                  </div>#}
+{#                </div>#}
               </div>
           </div>
 
@@ -153,54 +189,54 @@
               </div>
             </div>
               <div class="col-12">
-                <div class="card">
-                  <div class="card-body">
-                      <li class="media">
-                        <a href="#" class="btn btn-icon btn-warning mr-3 rounded" ><i class="ion ion-android-archive"></i></a>
-                        <div class="media-body">
-                          <div class="media-right">1.2mb</div>
-                          <div class="media-title"><a href="#">app-info.zip</a></div>
-                          <div class="text-small text-muted">08.02.21</div>
-                        </div>
-                      </li>
-                  </div>
-                </div>
-                  <div class="card">
-                  <div class="card-body">
-                      <li class="media">
-                        <a href="#" class="btn btn-icon btn-info mr-3 rounded" ><i class="fas fa-code"></i></a>
-                        <div class="media-body">
-                          <div class="media-right">763kb</div>
-                          <div class="media-title"><a href="#">ContactsViewModel.kt</a></div>
-                          <div class="text-small text-muted">07.26.21</div>
-                        </div>
-                      </li>
-                  </div>
-                </div>
-                  <div class="card">
-                  <div class="card-body">
-                      <li class="media">
-                        <a href="#" class="btn btn-icon btn-success mr-3 rounded" ><i class="fas fa-image"></i></a>
-                        <div class="media-body">
-                          <div class="media-right">5.6mb</div>
-                          <div class="media-title"><a href="#">avatar-xl.png</a></div>
-                          <div class="text-small text-muted">07.24.21</div>
-                        </div>
-                      </li>
-                  </div>
-                </div>
-                  <div class="card">
-                  <div class="card-body">
-                      <li class="media">
-                        <a href="#" class="btn btn-icon btn-success mr-3 rounded" ><i class="fas fa-image"></i></a>
-                        <div class="media-body">
-                          <div class="media-right">1.2mb</div>
-                          <div class="media-title"><a href="#">welcome-login.png</a></div>
-                          <div class="text-small text-muted">06.29.21</div>
-                        </div>
-                      </li>
-                  </div>
-                </div>
+{#                <div class="card">#}
+{#                  <div class="card-body">#}
+{#                      <li class="media">#}
+{#                        <a href="#" class="btn btn-icon btn-warning mr-3 rounded" ><i class="ion ion-android-archive"></i></a>#}
+{#                        <div class="media-body">#}
+{#                          <div class="media-right">1.2mb</div>#}
+{#                          <div class="media-title"><a href="#">app-info.zip</a></div>#}
+{#                          <div class="text-small text-muted">08.02.21</div>#}
+{#                        </div>#}
+{#                      </li>#}
+{#                  </div>#}
+{#                </div>#}
+{#                  <div class="card">#}
+{#                  <div class="card-body">#}
+{#                      <li class="media">#}
+{#                        <a href="#" class="btn btn-icon btn-info mr-3 rounded" ><i class="fas fa-code"></i></a>#}
+{#                        <div class="media-body">#}
+{#                          <div class="media-right">763kb</div>#}
+{#                          <div class="media-title"><a href="#">ContactsViewModel.kt</a></div>#}
+{#                          <div class="text-small text-muted">07.26.21</div>#}
+{#                        </div>#}
+{#                      </li>#}
+{#                  </div>#}
+{#                </div>#}
+{#                  <div class="card">#}
+{#                  <div class="card-body">#}
+{#                      <li class="media">#}
+{#                        <a href="#" class="btn btn-icon btn-success mr-3 rounded" ><i class="fas fa-image"></i></a>#}
+{#                        <div class="media-body">#}
+{#                          <div class="media-right">5.6mb</div>#}
+{#                          <div class="media-title"><a href="#">avatar-xl.png</a></div>#}
+{#                          <div class="text-small text-muted">07.24.21</div>#}
+{#                        </div>#}
+{#                      </li>#}
+{#                  </div>#}
+{#                </div>#}
+{#                  <div class="card">#}
+{#                  <div class="card-body">#}
+{#                      <li class="media">#}
+{#                        <a href="#" class="btn btn-icon btn-success mr-3 rounded" ><i class="fas fa-image"></i></a>#}
+{#                        <div class="media-body">#}
+{#                          <div class="media-right">1.2mb</div>#}
+{#                          <div class="media-title"><a href="#">welcome-login.png</a></div>#}
+{#                          <div class="text-small text-muted">06.29.21</div>#}
+{#                        </div>#}
+{#                      </li>#}
+{#                  </div>#}
+{#                </div>#}
               </div>
           </div>
           <div class="col-12 col-sm-12 col-lg-4">
@@ -212,42 +248,42 @@
                     <h3>{{ storage.total }} MB</h3>
                     <span>used of {{ storage.used }} MB</span>
                   </div>
-                  <div class="summary-item">
-                    <ul class="list-unstyled list-unstyled-border">
-                      <li class="media">
-                        <a href="#" class="btn btn-icon btn-warning mr-3 rounded" ><i class="fas fa-file"></i></a>
-                        <div class="media-body">
-                          <div class="media-right">2.2 GB</div>
-                          <div class="media-title"><a href="#">Document</a></div>
-                          <div class="text-small text-muted">127 Files</div>
-                        </div>
-                      </li>
-                      <li class="media">
-                        <a href="#" class="btn btn-icon btn-info mr-3 rounded" ><i class="fas fa-image"></i></a>
-                        <div class="media-body">
-                          <div class="media-right">13 GB</div>
-                          <div class="media-title"><a href="#">Photos</a></div>
-                          <div class="text-small text-muted">1335 Files</div>
-                        </div>
-                      </li>
-                      <li class="media">
-                        <a href="#" class="btn btn-icon btn-danger mr-3 rounded" ><i class="fas fa-video"></i></a>
-                        <div class="media-body">
-                          <div class="media-right">42 GB</div>
-                          <div class="media-title"><a href="#">Videos</a></div>
-                          <div class="text-muted text-small">278 Files</div>
-                        </div>
-                      </li>
-                      <li class="media">
-                        <a href="#" class="btn btn-icon btn-primary mr-3 rounded" ><i class="fas fa-music"></i></a>
-                        <div class="media-body">
-                          <div class="media-right">1.8 GB</div>
-                          <div class="media-title"><a href="#">Musics</a></div>
-                          <div class="text-small text-muted">175 Files</div>
-                        </div>
-                      </li>
-                    </ul>
-                  </div>
+{#                  <div class="summary-item">#}
+{#                    <ul class="list-unstyled list-unstyled-border">#}
+{#                      <li class="media">#}
+{#                        <a href="#" class="btn btn-icon btn-warning mr-3 rounded" ><i class="fas fa-file"></i></a>#}
+{#                        <div class="media-body">#}
+{#                          <div class="media-right">2.2 GB</div>#}
+{#                          <div class="media-title"><a href="#">Document</a></div>#}
+{#                          <div class="text-small text-muted">127 Files</div>#}
+{#                        </div>#}
+{#                      </li>#}
+{#                      <li class="media">#}
+{#                        <a href="#" class="btn btn-icon btn-info mr-3 rounded" ><i class="fas fa-image"></i></a>#}
+{#                        <div class="media-body">#}
+{#                          <div class="media-right">13 GB</div>#}
+{#                          <div class="media-title"><a href="#">Photos</a></div>#}
+{#                          <div class="text-small text-muted">1335 Files</div>#}
+{#                        </div>#}
+{#                      </li>#}
+{#                      <li class="media">#}
+{#                        <a href="#" class="btn btn-icon btn-danger mr-3 rounded" ><i class="fas fa-video"></i></a>#}
+{#                        <div class="media-body">#}
+{#                          <div class="media-right">42 GB</div>#}
+{#                          <div class="media-title"><a href="#">Videos</a></div>#}
+{#                          <div class="text-muted text-small">278 Files</div>#}
+{#                        </div>#}
+{#                      </li>#}
+{#                      <li class="media">#}
+{#                        <a href="#" class="btn btn-icon btn-primary mr-3 rounded" ><i class="fas fa-music"></i></a>#}
+{#                        <div class="media-body">#}
+{#                          <div class="media-right">1.8 GB</div>#}
+{#                          <div class="media-title"><a href="#">Musics</a></div>#}
+{#                          <div class="text-small text-muted">175 Files</div>#}
+{#                        </div>#}
+{#                      </li>#}
+{#                    </ul>#}
+{#                  </div>#}
               </div>
             </div>
           </div>
@@ -271,7 +307,28 @@
           </div>
           <div class="modal-footer bg-whitesmoke br">
             <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
-            <button id="goAcquisition" class="btn btn-primary confirm-delete-btn"
+            <button id="goPhysicalAcquisition" class="btn btn-primary confirm-delete-btn"
+               data-serial-id="{{ serial_id }}">Yes</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="modal fade"  tabindex="-1" role="dialog" id="ffsModal-{{ serial_id }}">
+      <div class="modal-dialog" role="document">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Acquisition Device</h5>
+            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+              <span aria-hidden="true">&times;</span>
+            </button>
+          </div>
+          <div class="modal-body">
+            <p>Are you sure want to full file system acquisition this devices?<br>deviceID: {{ serial_id }}</p>
+          </div>
+          <div class="modal-footer bg-whitesmoke br">
+            <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+            <button id="goFullFileSystemAcquisition" class="btn btn-primary confirm-delete-btn"
                data-serial-id="{{ serial_id }}">Yes</button>
           </div>
         </div>
@@ -333,8 +390,20 @@
     </script>
     
     <script>
-        document.getElementById('goAcquisition').addEventListener('click', function() {
-            fetch('/device/acquisition/{{ serial_id }}/generate-unique-code')
+        document.getElementById('goPhysicalAcquisition').addEventListener('click', function() {
+            fetch('/device/acquisition/{{ serial_id }}/generate-unique-code/physical')
+            .then(response => response.json())
+            .then(data => {
+                if(data.success && data.unique_code) {
+                    window.location.href = `/device/acquisition/{{ serial_id }}/setup/${data.unique_code}`;
+                } else {
+                    alert("Failed to start acquisition process.");
+                }
+            });
+        });
+        
+        document.getElementById('goFullFileSystemAcquisition').addEventListener('click', function() {
+            fetch('/device/acquisition/{{ serial_id }}/generate-unique-code/full-file-system')
             .then(response => response.json())
             .then(data => {
                 if(data.success && data.unique_code) {

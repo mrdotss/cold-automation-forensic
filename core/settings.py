@@ -33,11 +33,13 @@ SECRET_KEY = config('SECRET_KEY', default="django-insecure-ho4p)e37eulw4l^7qnel#
 DEBUG = config('DEBUG', default=True, cast=bool)
 
 # load production server from .env
-ALLOWED_HOSTS = ['localhost', '127.0.0.1', '100.117.148.74', config('SERVER', default='127.0.0.1')]
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', config('SERVER', default='127.0.0.1')]
 
 # Application definition
 INSTALLED_APPS = [
     'channels',
+    'admin_interface',
+    'colorfield',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -47,6 +49,9 @@ INSTALLED_APPS = [
     'apps.home',  # Enable the inner home (home)
     'apps.authentication',  # Enable the inner authentication (authentication)
 ]
+
+# Use modals instead of popup windows for Django Admin Interface
+X_FRAME_OPTIONS = "SAMEORIGIN"
 
 ASGI_APPLICATION = 'core.asgi.application'
 

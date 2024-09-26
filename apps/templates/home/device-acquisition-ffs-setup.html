@@ -1,0 +1,204 @@
+{% extends 'layouts/base.html' %}
+
+{% block title %} Full File System Acquisition {% endblock title %}
+
+<!-- Specific CSS goes HERE -->
+{% block stylesheets %}
+{% load static %}
+  <!-- CSS Libraries -->
+  <link rel="stylesheet" href="{% static 'node_modules/datatables.net-bs4/css/dataTables.bootstrap4.min.css' %}">
+  <link rel="stylesheet" href="{% static 'node_modules/datatables.net-select-bs4/css/select.bootstrap4.min.css' %}">
+  <link rel="stylesheet" href="{% static 'node_modules/select2/dist/css/select2.min.css' %}">
+  <link rel="stylesheet" href="{% static 'node_modules/selectric/public/selectric.css' %}">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-select/1.13.18/css/bootstrap-select.min.css" integrity="sha512-ARJR74swou2y0Q2V9k0GbzQ/5vJ2RBSoCWokg4zkfM29Fb3vZEQyv0iWBMW/yvKgyHSR/7D64pFMmU8nYmbRkg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+  <style>
+      .selected {
+        background-color: #e0e0e0; /* or any color you prefer */
+    }
+  </style>
+{% endblock stylesheets %}
+
+{% block content %}
+    <div class="section-header">
+        <h1>Lab</h1>
+        <div class="section-header-breadcrumb">
+          <div class="breadcrumb-item active"><a href="#">Lab</a></div>
+          <div class="breadcrumb-item">Data Extraction</div>
+        </div>
+    </div>
+
+    <div class="section-body">
+        <h2 class="section-title">Full File System Acquisition</h2>
+        <p class="section-lead">Selecting system app</p>
+
+        <div class="row">
+
+          <div class="col-12 col-md-8 col-lg-8">
+            <div class="card">
+              <div class="card-body card-root-acquisition-setup">
+
+                <div class="card-1st">
+                  <div class="card-header">
+                    <h4>
+                        <span class="d-inline-block" data-toggle="tooltip" data-title="Currently we extract data via ADB with root access.">
+                        <button class="btn btn-outline-dark" type="button" disabled>Beta</button>
+                        </span>
+                    </h4>
+                  </div>
+
+
+                  <div class="card-body">
+
+                    <div class="d-flex justify-content-between align-items-center">
+                      <span class="d-inline-block" data-toggle="tooltip" data-title="Select the app first and then you can start the acquisition.">
+                        <button id="acquisition-btn" class="btn btn-primary" disabled>Acquisition</button>
+                      </span>
+
+                      <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="gridCheck">
+                        <label class="form-check-label" for="gridCheck">
+                            <strong>Verify the result</strong>
+                            <span class="d-inline-block" data-toggle="tooltip"
+                                data-title="We'll hash the selected partition before running the acquisition, then compare the hash result of the acquisition with the hash before the acquisition. (This will take more time)">
+                                <i class="fas fa-question-circle"></i>
+                            </span>
+                        </label>
+                      </div>
+                    </div>
+
+                      <br><br>
+                      <div class="table-responsive">
+                      <table class="table table-striped" id="table-2">
+                        <thead>
+                          <tr>
+                            <th class="text-center">
+                              <div class="custom-checkbox custom-control">
+                                <input type="checkbox" data-checkboxes="mygroup" data-checkbox-role="dad" class="custom-control-input" id="checkbox-all">
+                                <label for="checkbox-all" class="custom-control-label">&nbsp;</label>
+                              </div>
+                            </th>
+                            <th>Icon</th>
+                            <th>App Name</th>
+                            <th>Platform</th>
+                            <th>Status</th>
+                            <th>Action</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+
+                        {% for ffsList in file_system_list %}
+                          <tr>
+                            <td>
+                              <div class="custom-checkbox custom-control">
+                                <input type="checkbox" data-checkboxes="mygroup" class="custom-control-input" id="checkbox-{{ forloop.counter }}">
+                                <label for="checkbox-{{ forloop.counter }}" class="custom-control-label">&nbsp;</label>
+                              </div>
+                            </td>
+                            <td>
+                              {% load custom_filters %}
+                              <img alt="image" src="/static/assets/img/icons/apps/{{ ffsList|image_exists }}.png" class="rounded-circle" width="35" data-toggle="tooltip" title="{{ ffsList }}">
+                            </td>
+                            <td>{{ ffsList }}</td>
+                            <td><a href="#" class="btn btn-success"><i class="fa fa-mobile"></i>  Android</a></td>
+                            <td><div class="badge badge-success">Available</div></td>
+                            <td><a href="#" class="btn btn-info"><i class="fa fa-info"></i></a></td>
+                          </tr>
+                        {% endfor %}
+
+                        </tbody>
+                      </table>
+                    </div>
+
+                  </div>
+                </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-12 col-md-4 col-lg-4">
+                <div class="card">
+                  <div class="card-header">
+                    <h4>Acquisition History for Device ID: {{ serial_id }}</h4>
+                    <div class="card-header-action">
+                      <a data-collapse="#mycard-collapse" class="btn btn-icon btn-light" href="#"><i class="fas fa-minus"></i></a>
+                    </div>
+                  </div>
+                  <div class="collapse show" id="mycard-collapse">
+                    <div class="card-body">
+                        <table class="table table-striped">
+                          <thead>
+                            <tr>
+                              <th scope="col">#</th>
+                              <th scope="col">ID</th>
+                              <th scope="col">Package Name</th>
+                              <th scope="col">Status</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                          {% for acquisition in acquisitionHistory %}
+                            <tr>
+                              <th scope="row">{{ forloop.counter }}</th>
+                              <td>
+                                  <span class="d-inline-block" data-toggle="tooltip" data-title="{{ acquisition.acquisition_id }}">
+                                    <button class="btn btn-outline-info" type="button" disabled>ID</button>
+                                  </span>
+                              </td>
+                              <td>{{ acquisition.acquisition_partition_id }}</td>
+                              <td>{{ acquisition.acquisition_size }}</td>
+                            </tr>
+                          {% endfor %}
+
+                          </tbody>
+                        </table>
+                    </div>
+                    <div class="card-footer">
+                      <strong>Note: Please kindly check given path above.</strong>
+                    </div>
+                  </div>
+                </div>
+            </div>
+          </div>
+        </div>
+{% endblock content %}
+
+{% block modalstuff %}
+    {% for acquisition in acquisitionHistory %}
+        {% if acquisition.acquisition_full_path %}
+            <div class="modal fade" tabindex="-1" role="dialog" id="filePathModal-{{ acquisition.acquisition_id }}">
+              <div class="modal-dialog modal-dialog-centered" role="document"  style="width: 600px; max-width: 90%;">
+                <div class="modal-content">
+                  <div class="modal-header">
+                    <h5 class="modal-title">Detail ID of {{ acquisition.acquisition_id }}</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                      <span aria-hidden="true">&times;</span>
+                    </button>
+                  </div>
+                  <div class="modal-body">
+                    <p>
+                        <strong>Path</strong>: {{ acquisition.acquisition_full_path }}/{{ acquisition.acquisition_file_name }}<br>
+                        <strong>Hash SHA256</strong>: {{ acquisition.acquisition_hash }}
+                    </p>
+                  </div>
+                  <div class="modal-footer bg-whitesmoke br">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+        {% endif %}
+    {% endfor %}
+{% endblock modalstuff %}
+
+<!-- Specific JS goes HERE -->
+{% block javascripts %}
+    <!-- JS Libraies -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.min.js"></script>
+
+    <script src="{% static 'node_modules/datatables/media/js/jquery.dataTables.min.js' %}"></script>
+    <script src="{% static 'node_modules/datatables.net-bs4/js/dataTables.bootstrap4.min.js' %}"></script>
+    <script src="{% static 'node_modules/datatables.net-select-bs4/js/select.bootstrap4.min.js' %}"></script>
+
+    <script src="{% static 'assets/js/page/forms-advanced-forms.js' %}"></script>
+    <script src="{% static 'assets/js/page/modules-datatables.js' %}"></script>
+
+{% endblock javascripts %}

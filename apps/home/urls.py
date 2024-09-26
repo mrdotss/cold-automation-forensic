@@ -27,7 +27,9 @@ urlpatterns = [
     path('profile/', views.Profiles.as_view(), name='profile_home'),
     path('device/acquisition/<str:serial_id>', views.Acquisitions.as_view(), name='device_acquisition'),
     path('device/acquisition/<str:serial_id>/setup/<uuid:unique_code>', views.AcquisitionSetup.as_view(), name='device_acquisition_setup'),
-    path('device/acquisition/<str:serial_id>/generate-unique-code', views.GenerateUniqueCodeView.as_view(), name='generate_unique_code'),
+
+    # Generate unique code
+    path('device/acquisition/<str:serial_id>/generate-unique-code/<str:acquire_method>', views.GenerateUniqueCodeView.as_view(), name='generate_unique_code'),
 
     ## No Class
     path('evidence/<uuid:evidence_id>/modal_data', views.get_evidence_modal_data, name='get_evidence_modal_data'),
