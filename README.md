@@ -2,7 +2,7 @@
 
 ## Overview
 
- **CAF (Cold Automation Forensic)**, a web application designed to streamline the remote acquisition of data from Android devices.
+ **CAF (Cold Automation Forensic)**, a web application (with Django 5) designed to streamline the remote acquisition of data from Android devices.
 
 ## Getting Started
 
@@ -81,6 +81,15 @@ I understand that this application is still less than perfect and that there are
 Stay tuned for more features that will be released next year. These features will enhance the capabilities of RAAS, providing more powerful tools for data acquisition and analysis.
 
 
+## Todo List
+- [x] Physical Acquisition (USB & Wireless)
+- [ ] Logical Acquisition (40%)
+- [ ] Full File System Acquisition
+- [ ] Reporting System
+- [ ] Improvement for Log Management
+- [ ] Improvement for Case Management and Evidence Management
+- [ ] Enhancement for Security (Endless)
+ 
 ## License
 
 This project use Stisla, and Stisla is under the [MIT License](https://github.com/stisla/stisla/blob/master/LICENSE).

@@ -21,6 +21,8 @@ class ColdForensic:
         self.secret_key = 'very_secret_key'
         self.adb_instance = ADBCore()
 
+    def is_hashed_ip_or_not(self, id):
+        return len(id) > 15
 
     def isRooted(self, id):
         device = id

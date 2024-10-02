@@ -21,7 +21,11 @@
 
 {% block content %}
     <div class="section-header">
-        <h1>Lab</h1>
+        <h1>Acquisition Setup</h1>
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        <div id="showBridge">
+        </div>
+
         <div class="section-header-breadcrumb">
           <div class="breadcrumb-item active"><a href="#">Lab</a></div>
           <div class="breadcrumb-item">Data Extraction</div>
@@ -31,15 +35,6 @@
     <div class="section-body">
         <h2 class="section-title">Physical Acquisition</h2>
         <p class="section-lead">Selecting partition</p>
-
-         <div id="top-right-alert" class="alert alert-primary alert-dismissible fade show">
-            <div class="alert-body">
-                <button class="close" data-dismiss="alert">
-                    <span>&times;</span>
-                </button>
-                This is a primary alert.
-            </div>
-        </div>
 
         <div class="row">
 
@@ -141,15 +136,15 @@
                               <td>
                                   {% if acquisition.status == "pending" %}
                                     <div class="badge badge-warning">Pending</div>
-                                  {% elif acquisition.acquisition_status == "progress" %}
+                                  {% elif acquisition.status == "progress" %}
                                     <div class="badge badge-primary">Progress</div>
-                                  {% elif acquisition.acquisition_status == "completed" %}
+                                  {% elif acquisition.status == "completed" %}
                                     <div class="badge badge-success">Completed</div>
-                                  {% elif acquisition.acquisition_status == "paused" %}
+                                  {% elif acquisition.status == "paused" %}
                                     <div class="badge badge-info">Paused</div>
-                                  {% elif acquisition.acquisition_status == "error" %}
+                                  {% elif acquisition.status == "error" %}
                                     <div class="badge badge-danger">Error</div>
-                                  {% elif acquisition.acquisition_status == "failed" %}
+                                  {% elif acquisition.status == "failed" %}
                                     <div class="badge badge-light">Failed</div>
                                   {% endif %}
                               </td>
@@ -220,6 +215,17 @@
     <script src="{% static 'node_modules/selectric/public/jquery.selectric.min.js' %}"></script>
     <script src="{% static 'assets/js/page/forms-advanced-forms.js' %}"></script>
     <script>
+
+        if( {{ isWifi|yesno:"true,false" }} ){
+            $('#showBridge').html(`<span class="d-inline-block" data-toggle="tooltip" data-title="This device is connected via IP address: {{ ipAddress }}">
+                <button class="btn btn-outline-secondary pe-none" type="button" disabled>WiFi</button>
+            </span>`);
+        } else {
+            $('#showBridge').html(`<span class="d-inline-block" data-toggle="tooltip" data-title="This device is connected via USB">
+                <button class="btn btn-outline-secondary pe-none" type="button" disabled>USB</button>
+            </span>`);
+        }
+
         let columns;
 
         $(document).ready(function() {

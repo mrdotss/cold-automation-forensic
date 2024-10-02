@@ -203,8 +203,15 @@ def get_acquisition_save_location(request, serial_id, unique_code):
             case_name=F('case__case_name')
         )
 
-        return render(request, 'includes/acquisition_save_location.html',
-                      {'evidenceList': evidenceList})
+        isHashedIP = ColdForensic().is_hashed_ip_or_not(serial_id)
+        isWifi = ColdForensic().check_if_hashed_ip(serial_id, ColdForensic().secret_key) if isHashedIP else False
+
+        context ={
+            'evidenceList': evidenceList,
+            'isWifi': isWifi,
+        }
+
+        return render(request, 'includes/acquisition_save_location.html', context)
     else:
         return HttpResponse("Serial ID or Unique not found")
 
@@ -367,7 +374,6 @@ class DevicesDetail(View):
         context = {
             'isWiFi': 'true',
             'deviceID': dev_id,
-
         }
 
         html_template = loader.get_template('home/device-detail.html')
@@ -441,6 +447,9 @@ class AcquisitionSetup(View):
         if not isDevice or not acquisitionObject:
             return HttpResponse("Device or acquisition process not found")
 
+        isHashedIP = ColdForensic().is_hashed_ip_or_not(serial_id)
+        isWifi = ColdForensic().check_if_hashed_ip(serial_id, ColdForensic().secret_key) if isHashedIP else False
+
         acquisitionHistory = Acquisition.objects.filter(device_id=serial_id).select_related('physical').values(
             'acquisition_id', 'status', 'full_path', 'file_name',
             'date', 'physical__partition_id', 'physical__partition_size', 'unique_link',
@@ -454,7 +463,16 @@ class AcquisitionSetup(View):
             context = {
                 'file_system_list': fileSystemList,
                 'acquisitionHistory': acquisitionHistory,
+                'isWifi': isWifi
             }
+
+            if isHashedIP:
+                context = {
+                    'file_system_list': fileSystemList,
+                    'acquisitionHistory': acquisitionHistory,
+                    'isWifi': isWifi,
+                    'ipAddress': ColdForensic().decrypt(serial_id, ColdForensic().secret_key).split(':')[0]
+                }
 
             return render(request, 'home/device-acquisition-ffs-setup.html', context)
 
@@ -477,7 +495,18 @@ class AcquisitionSetup(View):
             'partitionList': partitionList,
             'acquisitionProcess': acquisitionObject,
             'acquisitionHistory': acquisitionHistory,
+            'isWifi': isWifi,
         }
+
+        if isHashedIP:
+            context = {
+                'serial_id': serial_id,
+                'partitionList': partitionList,
+                'acquisitionProcess': acquisitionObject,
+                'acquisitionHistory': acquisitionHistory,
+                'isWifi': isWifi,
+                'ipAddress': ColdForensic().decrypt(serial_id, ColdForensic().secret_key).split(':')[0]
+            }
 
         return render(request, 'home/device-acquisition-physical-setup.html', context)
 
@@ -496,8 +525,11 @@ class AcquisitionSetup(View):
         # Generate a random string for unique identifier
         unique_id = ''.join(random.choices(string.ascii_lowercase + string.digits, k=5))
 
-        is_wifi, decrypted_id = ColdForensic().check_if_hashed_ip(serial_id, ColdForensic().secret_key)
-        connection_type = 'WiFi' if is_wifi else 'USB'
+        # Check if the device is connected via WiFi or USB
+        isHashedIP = ColdForensic().is_hashed_ip_or_not(serial_id)
+        isWifi = ColdForensic().check_if_hashed_ip(serial_id, ColdForensic().secret_key) if isHashedIP else False
+
+        connection_type = 'WiFi' if isWifi else 'USB'
 
         acquisition_file_name = f"{data['partition_id']}_{current_time}_{unique_id}_{connection_type.lower()}.dd"
 
@@ -536,8 +568,7 @@ class AcquisitionSetup(View):
         acquisitionObject.connection_type = connection_type
         acquisitionObject.file_name = acquisition_file_name
         acquisitionObject.full_path = data['full_path']
-        acquisitionObject.client_ip = data.get('client_ip')  # Handle optional fields safely
-        acquisitionObject.port = data.get('custom_port')
+        acquisitionObject.client_ip = data.get('client_ip') if data.get('client_ip') != "USB" else ""  # Handle optional fields safely
         acquisitionObject.status = "progress"
         acquisitionObject.size = round(int(data['partition_size']) / 1000000, 2)
 
