@@ -25,6 +25,14 @@ Also documented [here](https://s3.wasabisys.com/c343765-a/User-Manual/RAAS%20-%2
 - **Redis server** (You can install it on the same server)
 - **Virtualenv** (Optional but recommended for creating isolated Python environments)
 
+### For The Device
+- You need to enable USB Debugging on your device and connect it to your computer via USB/IP Address
+- And then you can check if the device is connected by running `adb devices` on your terminal
+   ```shell
+   adb devices
+   ```
+
+
 ### Step-by-Step Setup Guide
 
 1. **Clone the Repository or Extract the Source Code**:
