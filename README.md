@@ -2,11 +2,16 @@
 
 ## Overview
 
- **CAF (Cold Automation Forensic)**, a web application (with Django 5) designed to streamline the remote acquisition of data from Android devices.
+A web application (Django 5) designed for wired/wireless (remote) acquisition of data from Android devices, based on [WebADB](https://github.com/mrdotss/webadb), which I recently used, but with slightly more powerful features.
 
 ## Getting Started
 
 To begin using RAAS, follow these steps to set up your development environment:
+
+Note: 
+* I don't provide feature to root the device, so you need to root the device if you want to use the physical acquisition (but some basic task doesn't need root)
+* Maybe some phone will not work with other features, because need some adjustment for the device
+* I can say this forensically sound tool and still in the development stage for stable use
 
 ### Prerequisites
 
@@ -16,7 +21,7 @@ Also documented [here](https://s3.wasabisys.com/c343765-a/User-Manual/RAAS%20-%2
 - **SDK Platform Tools** (Add to your PATH)
 - **pip** (Python package installer)
 - **node.js** (Install [node.js](https://nodejs.org/en/download/) first if you don't have it in your machine, min version 18.0 for this package)
-- **yarn** (Install [yarn](https://classic.yarnpkg.com/lang/en/docs/install/#windows-stable) first if you don't have it in your machine)
+- **yarn** (Install [yarn](https://classic.yarnpkg.com/lang/en/docs/install/#windows-stable) first if you don't have it in your machine) for installing the frontend dependencies
 - **Redis server** (You can install it on the same server)
 - **Virtualenv** (Optional but recommended for creating isolated Python environments)
 
@@ -92,4 +97,4 @@ Stay tuned for more features that will be released next year. These features wil
  
 ## License
 
-This project use Stisla, and Stisla is under the [MIT License](https://github.com/stisla/stisla/blob/master/LICENSE).
+This project use Stisla (Dashboard Template), and Stisla is under the [MIT License](https://github.com/stisla/stisla/blob/master/LICENSE).
