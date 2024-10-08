@@ -40,7 +40,7 @@ class ADBCore:
         if device:
             cmd += ['-s', device]
         if use_su:
-            args = ['su', '-c'] + args
+            args = ['su 0 -c'] + args
         cmd += args
 
         with subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE) as p:
@@ -53,8 +53,6 @@ class ADBCore:
 
         error_message = stderr.decode('utf-8')
         return p.returncode, result, error_message
-
-        return result
 
     def adb_forward_generator(self, device=None, local_port=None, remote_port=None):
         """

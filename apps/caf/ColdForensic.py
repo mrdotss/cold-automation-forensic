@@ -4,8 +4,8 @@ from .ADBCore import ADBCore
 import dataclasses
 import base64
 import time
-import re
-
+import re, os
+import logging
 
 class ColdForensic:
     def __init__(self):
@@ -20,6 +20,18 @@ class ColdForensic:
         """
         self.secret_key = 'very_secret_key'
         self.adb_instance = ADBCore()
+        self.original_busybox = f'{os.path.dirname(os.path.dirname(os.path.abspath(__file__)))}/resources/busybox'
+        self.remote_busybox_sdcard = '/sdcard/busybox'
+        self.remote_busybox_destination = '/data/local/busybox'
+
+    def setup_logging(self):
+        logger = logging.getLogger(__name__)
+        handler = logging.StreamHandler()
+        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        handler.setFormatter(formatter)
+        logger.addHandler(handler)
+        logger.setLevel(logging.DEBUG)
+        return logger
 
     def is_hashed_ip_or_not(self, id):
         return len(id) > 15
@@ -521,3 +533,49 @@ class ColdForensic:
             fileSystemList.append(out)
 
         return fileSystemList
+
+    def setupBusybox(self, id):
+        device = id
+
+        if len(id) > 15 and self.checkSerialID(id):
+            device = self.decrypt(id, self.secret_key)
+
+        (rc, out, err) = self.adb_instance.adb(['shell', 'ls', self.remote_busybox_destination], device=device)
+
+        if rc == 0 and 'No such file or directory' not in err:
+            busybox_exists = True
+        else:
+            busybox_exists = False
+
+        # If busybox does not exist, perform the setup
+        if not busybox_exists:
+            # Step 2: Push busybox to /sdcard/busybox
+            (rc, out, err) = self.adb_instance.adb(['push', self.original_busybox, self.remote_busybox_sdcard],
+                                               device=device)
+            if rc != 0:
+                print(err)
+                return []
+
+            # Step 3: Move busybox to /data/local/busybox
+            (rc, out, err) = self.adb_instance.adb(
+                ['shell', 'su 0 -c', f'mv {self.remote_busybox_sdcard} {self.remote_busybox_destination}'],
+                device=device)
+            if rc != 0:
+                print(err)
+                return []
+
+            # Step 4: Set permissions
+            (rc, out, err) = self.adb_instance.adb(['shell', 'su 0 -c', f'chmod 755 {self.remote_busybox_destination}'],
+                                             device=device)
+            if rc != 0:
+                print(err)
+                return []
+
+            # Step 5: Verify busybox is executable
+            (rc, out, err) = self.adb_instance.adb(['shell', 'su 0 -c', self.remote_busybox_destination, '--help'],
+                                             device=device)
+            if rc != 0:
+                print(err)
+                return []
+
+        return True

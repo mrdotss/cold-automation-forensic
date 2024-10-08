@@ -1,4 +1,5 @@
 from django.contrib.auth.models import (UserManager, AbstractBaseUser, PermissionsMixin)
+from auditlog.registry import auditlog
 from django.db import models
 from django.db.models import JSONField
 import uuid
@@ -109,20 +110,6 @@ class Case(models.Model):
         return self.case_name
 
 
-class Log(models.Model):
-    log_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    user = models.ForeignKey(User, on_delete=models.DO_NOTHING)
-    case = models.ForeignKey(Case, on_delete=models.CASCADE)
-    log_action = models.CharField(max_length=10)
-    log_data_type = models.CharField(max_length=20)
-    log_old_value = models.CharField(max_length=255)
-    log_new_value = models.CharField(max_length=255)
-    caf_log_created_at = models.DateTimeField(auto_now_add=True)
-
-    def __str__(self):
-        return self.log_id
-
-
 class Evidence(models.Model):
     evidence_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     case = models.ForeignKey(Case, on_delete=models.CASCADE)
@@ -171,7 +158,7 @@ class Acquisition(models.Model):
     full_path = models.CharField(max_length=255, null=True, blank=True)
     date = models.DateTimeField(auto_now_add=True)
     last_active = models.DateTimeField(null=True, blank=True)
-    size = models.BigIntegerField(default=0, null=True, blank=True)
+    size = models.DecimalField(default=0, max_digits=8, decimal_places=3)
     unique_link = models.CharField(max_length=255, unique=True)
 
     def __str__(self):
@@ -242,3 +229,13 @@ class FullFileSystemAcquisition(models.Model):
 
     def __str__(self):
         return f"Full File System Details for {self.acquisition}"
+
+
+# Register the models with the auditlog
+auditlog.register(User)
+auditlog.register(Case)
+auditlog.register(Evidence)
+auditlog.register(Acquisition)
+auditlog.register(PhysicalAcquisition)
+auditlog.register(LogicalAcquisition)
+auditlog.register(FullFileSystemAcquisition)

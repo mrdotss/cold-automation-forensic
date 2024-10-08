@@ -205,10 +205,12 @@ def get_acquisition_save_location(request, serial_id, unique_code):
 
         isHashedIP = ColdForensic().is_hashed_ip_or_not(serial_id)
         isWifi = ColdForensic().check_if_hashed_ip(serial_id, ColdForensic().secret_key) if isHashedIP else False
+        ipAddress = ColdForensic().decrypt(serial_id, ColdForensic().secret_key).split(':')[0] if isHashedIP else ""
 
         context ={
             'evidenceList': evidenceList,
             'isWifi': isWifi,
+            'ipAddress': ipAddress,
         }
 
         return render(request, 'includes/acquisition_save_location.html', context)
@@ -450,11 +452,7 @@ class AcquisitionSetup(View):
         isHashedIP = ColdForensic().is_hashed_ip_or_not(serial_id)
         isWifi = ColdForensic().check_if_hashed_ip(serial_id, ColdForensic().secret_key) if isHashedIP else False
 
-        acquisitionHistory = Acquisition.objects.filter(device_id=serial_id).select_related('physical').values(
-            'acquisition_id', 'status', 'full_path', 'file_name',
-            'date', 'physical__partition_id', 'physical__partition_size', 'unique_link',
-            'physical__hash_after_acquisition'
-        )
+        acquisitionHistory = Acquisition.objects.filter(device_id=serial_id).select_related('physical')
 
         # For FFS method
         if acquisitionObject.acquisition_type == "full-file-system":
@@ -477,12 +475,21 @@ class AcquisitionSetup(View):
             return render(request, 'home/device-acquisition-ffs-setup.html', context)
 
         # Check if the acquisition needs to resume
-        if hasattr(acquisitionObject, 'physical') and acquisitionObject.physical.total_transferred_bytes > 0 and acquisitionObject.status == "failed":
+        if hasattr(acquisitionObject, 'physical') and acquisitionObject.physical.total_transferred_bytes > 0 and acquisitionObject.status in ["failed", "progress"]:
             context = {
                 'serial_id': serial_id,
                 'acquisitionProcess': acquisitionObject,
                 'acquisitionHistory': acquisitionHistory,
             }
+
+            if isHashedIP:
+                context = {
+                    'serial_id': serial_id,
+                    'acquisitionProcess': acquisitionObject,
+                    'acquisitionHistory': acquisitionHistory,
+                    'ipAddress': ColdForensic().decrypt(serial_id, ColdForensic().secret_key).split(':')[0]
+                }
+
             return render(request, 'home/device-acquisition-resume.html', context)
 
         if acquisitionObject.status in ["completed"]:

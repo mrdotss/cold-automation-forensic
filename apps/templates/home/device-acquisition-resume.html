@@ -21,6 +21,10 @@
 {% block content %}
     <div class="section-header">
         <h1>Lab</h1>
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        <div id="showBridge">
+        </div>
+        
         <div class="section-header-breadcrumb">
           <div class="breadcrumb-item active"><a href="#">Lab</a></div>
           <div class="breadcrumb-item">Data Extraction</div>
@@ -78,34 +82,34 @@
                             <tr>
                               <th scope="row">{{ forloop.counter }}</th>
                               <td>
-                                  <span class="d-inline-block" data-toggle="tooltip" data-title="{{ acquisition.acquisition_id }}">
+                                  <span class="d-inline-block" data-toggle="tooltip" data-title="{{ acquisition.id }}">
                                     <button class="btn btn-outline-info" type="button" disabled>ID</button>
                                   </span>
                               </td>
-                              <td>{{ acquisition.acquisition_partition_id }}</td>
-                              <td>{{ acquisition.acquisition_size }}</td>
+                              <td>{{ acquisition.physical.partition_id }}</td>
+                              <td>{{ acquisition.physical.partition_size }}</td>
                               <td>
-                                  {% if acquisition.acquisition_status == "pending" %}
+                                  {% if acquisition.status == "pending" %}
                                     <div class="badge badge-warning">Pending</div>
-                                  {% elif acquisition.acquisition_status == "progress" %}
+                                  {% elif acquisition.status == "progress" %}
                                     <div class="badge badge-primary">Progress</div>
-                                  {% elif acquisition.acquisition_status == "completed" %}
+                                  {% elif acquisition.status == "completed" %}
                                     <div class="badge badge-success">Completed</div>
-                                  {% elif acquisition.acquisition_status == "paused" %}
+                                  {% elif acquisition.status == "paused" %}
                                     <div class="badge badge-info">Paused</div>
-                                  {% elif acquisition.acquisition_status == "error" %}
+                                  {% elif acquisition.status == "error" %}
                                     <div class="badge badge-danger">Error</div>
-                                  {% elif acquisition.acquisition_status == "failed" %}
+                                  {% elif acquisition.status == "failed" %}
                                     <div class="badge badge-light">Failed</div>
                                   {% endif %}
                               </td>
-                              <td>{{ acquisition.acquisition_date }}</td>
+                              <td>{{ acquisition.date }}</td>
                               <td>
-                                  <a class="btn btn-icon btn-info"data-toggle="tooltip" href="/device/acquisition/{{ serial_id }}/setup/{{ acquisition.acquisition_unique_link }}"
+                                  <a class="btn btn-icon btn-info"data-toggle="tooltip" href="/device/acquisition/{{ serial_id }}/setup/{{ acquisition.unique_link }}"
                                      data-title="Show the process"><i class="fas fa-eye"></i></a>
-                                  {% if  acquisition.acquisition_full_path %}
+                                  {% if  acquisition.full_path %}
                                       <button class="btn btn-icon btn-warning" data-toggle="modal"
-                                     data-target="#filePathModal-{{ acquisition.acquisition_id }}">
+                                     data-target="#filePathModal-{{ acquisition.id }}">
                                       <i class="fas fa-folder" data-toggle="tooltip" data-title="More details"></i></button>
                                   {% else %}
                                         <button class="btn btn-icon btn-warning disabled" data-toggle="tooltip" data-title="Not found">
@@ -131,20 +135,20 @@
 
 {% block modalstuff %}
     {% for acquisition in acquisitionHistory %}
-        {% if acquisition.acquisition_full_path %}
-            <div class="modal fade" tabindex="-1" role="dialog" id="filePathModal-{{ acquisition.acquisition_id }}">
+        {% if acquisition.full_path %}
+            <div class="modal fade" tabindex="-1" role="dialog" id="filePathModal-{{ acquisition.id }}">
               <div class="modal-dialog modal-dialog-centered" role="document"  style="width: 600px; max-width: 90%;">
                 <div class="modal-content">
                   <div class="modal-header">
-                    <h5 class="modal-title">Detail ID of {{ acquisition.acquisition_id }}</h5>
+                    <h5 class="modal-title">Detail ID of {{ acquisition.id }}</h5>
                     <button type="button" class="close" data-dismiss="modal" aria-label="Close">
                       <span aria-hidden="true">&times;</span>
                     </button>
                   </div>
                   <div class="modal-body">
                     <p>
-                        <strong>Path</strong>: {{ acquisition.acquisition_full_path }}/{{ acquisition.acquisition_file_name }}<br>
-                        <strong>Hash SHA256</strong>: {{ acquisition.acquisition_hash }}
+                        <strong>Path</strong>: {{ acquisition.full_path }}/{{ acquisition.file_name }}<br>
+                        <strong>Hash SHA256</strong>: {{ acquisition.physical.hash_after_acquisition }}
                     </p>
                   </div>
                   <div class="modal-footer bg-whitesmoke br">
@@ -166,33 +170,15 @@
     <script src="{% static 'node_modules/selectric/public/jquery.selectric.min.js' %}"></script>
     <script src="{% static 'assets/js/page/forms-advanced-forms.js' %}"></script>
     <script>
-        let columns;
-
-        $(document).ready(function() {
-            const $acquisitionBtn = $('#acquisition-btn');
-            const $rows = $('#table-1 tbody tr');
-
-            $rows.on('click', function() {
-                // Extract data from the selected row
-                columns = $(this).find('td').map(function() {
-                    return $(this).text();
-                }).get();
-
-                if ($(this).hasClass('selected')) {
-                    // If the row is already selected, unselect it
-                    $(this).removeClass('selected');
-                    $acquisitionBtn.prop('disabled', true);
-                } else {
-                    // If the row is not selected, deselect all other rows and select this one
-                    $('#table-1 tbody tr').removeClass('selected');
-                    $(this).addClass('selected');
-                    $acquisitionBtn.prop('disabled', false);
-                }
-
-                // Log the selected data
-                console.log("Selected partition:", columns[0]);
-            });
-        });
+        if( {{ isWifi|yesno:"true,false" }} ){
+            $('#showBridge').html(`<span class="d-inline-block" data-toggle="tooltip" data-title="This device is connected via IP address: {{ ipAddress }}">
+                <button class="btn btn-outline-secondary pe-none" type="button" disabled>WiFi</button>
+            </span>`);
+        } else {
+            $('#showBridge').html(`<span class="d-inline-block" data-toggle="tooltip" data-title="This device is connected via USB">
+                <button class="btn btn-outline-secondary pe-none" type="button" disabled>USB</button>
+            </span>`);
+        }
     </script>
 
     <script>
@@ -202,64 +188,13 @@
             const $checkbox = $('#gridCheck');
             
             // Check acquisition status on load
-            const acquisitionStatus = '{{ acquisitionProcess.acquisition_status }}';
-            const transferredBytes = '{{ acquisitionProcess.acquisition_total_transferred_bytes }}';
+            const acquisitionStatus = '{{ acquisitionProcess.status }}';
+            const transferredBytes = '{{ acquisitionProcess.physical.total_transferred_bytes }}';
+            
             if (acquisitionStatus === 'progress' || transferredBytes > 0) {
                 establishWebSocketConnection();
             }
-
-            // Log checkbox value when it changes
-            $checkbox.on('change', function() {
-                const isChecked = $(this).is(':checked');
-                console.log('Checkbox checked:', isChecked);
-            });
-
-            $acquisitionBtn.on('click', function() {
-
-                // Fade out the table
-                $tableContainer.fadeOut(function() {
-
-                    // Fetch the acquisition setup template using AJAX
-                    $.get('/acquisition-setup/{{ serial_id }}/save-location/{{ acquisitionProcess.acquisition_unique_link }}', function(data) {
-                        $('.card-root-acquisition-setup').html(data).fadeIn(function() {
-                            $('[data-toggle="tooltip"]').tooltip();
-                        });
-
-                        // Start the WebSocket connection
-                        $('#location-form').on('submit', function(e){
-                            const form = $(this);
-                            const isChecked = $checkbox.is(':checked');
-                            const checkboxValue = isChecked ? 'true' : 'false';
-                            console.log('Checkbox value before form submission:', checkboxValue);
-                            
-                            const formData = form.serialize() + "&serial_id=" + "{{ serial_id }}" + "&partition_id="
-                                            + columns[0] + "&partition_size=" + columns[1] + "&checkbox_value=" + checkboxValue; // Add checkbox value
-
-                            const CSRF_TOKEN = getCookie('csrftoken');
-                            e.preventDefault(); // Prevent the default form submission
-                            $.ajax({
-                                type: 'POST',
-                                headers: {
-                                            'X-CSRFToken': CSRF_TOKEN
-                                        },
-                                url: form.attr('action'),
-                                data: formData,
-                                success: function (data) {
-                                    console.log("Hasil data:", data);
-                                    console.log("Selected partition:", columns[0]);
-                                },
-                                error: function(err) {
-                                    console.log("Error:", err);
-                                }
-                            });
-                            $('#location-form').fadeOut();
-
-                            // Establish WebSocket connection
-                            establishWebSocketConnection();
-                        });
-                    });
-                });
-            });
+            
 
             function establishWebSocketConnection() {
                 const prefix = (window.location.protocol === 'https:') ? 'wss://' : 'ws://';
@@ -343,6 +278,13 @@
                                 }
                             }, 2000);
                             break;
+                        
+                        case "acquisition_completed":
+                            console.log("Current state:", data['type']);
+                            connectionID = data['connection_id'];
+                            const progressBar = document.getElementById("progressBar");
+                            progressBar.classList.remove("bg-success", "progress-bar-animated", "progress-bar-striped");
+                            break;
                     }
                 };
 
@@ -360,14 +302,14 @@
 
             function fetchNewProgress() {
                 console.log("fetchNewProgress called");
-                $.get('/acquisition-setup/{{ serial_id }}/progress/{{ acquisitionProcess.acquisition_unique_link }}', function(data) {
+                $.get('/acquisition-setup/{{ serial_id }}/progress/{{ acquisitionProcess.unique_link }}', function(data) {
                     $('.acquisition-body').fadeIn().html(data);
                 });
             }
 
             function fetchPreProgress() {
                 console.log("fetchPreProgress called");
-                $.get('/acquisition-setup/{{ serial_id }}/pre-progress/{{ acquisitionProcess.acquisition_unique_link }}', function(data) {
+                $.get('/acquisition-setup/{{ serial_id }}/pre-progress/{{ acquisitionProcess.unique_link }}', function(data) {
                     $('.acquisition-body').html(data);
                     $('.acquisition-body').fadeIn();
                 }).fail(function(jqXHR, textStatus, errorThrown) {

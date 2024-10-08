@@ -127,12 +127,12 @@
                             <tr>
                               <th scope="row">{{ forloop.counter }}</th>
                               <td>
-                                  <span class="d-inline-block" data-toggle="tooltip" data-title="{{ acquisition.acquisition_id }}">
+                                  <span class="d-inline-block" data-toggle="tooltip" data-title="{{ acquisition.id }}">
                                     <button class="btn btn-outline-info" type="button" disabled>ID</button>
                                   </span>
                               </td>
-                              <td>{{ acquisition.physical__partition_id }}</td>
-                              <td>{{ acquisition.physical__partition_size }}</td>
+                              <td>{{ acquisition.physical.partition_id }}</td>
+                              <td>{{ acquisition.physical.partition_size }}</td>
                               <td>
                                   {% if acquisition.status == "pending" %}
                                     <div class="badge badge-warning">Pending</div>
@@ -154,7 +154,7 @@
                                      data-title="Show the process"><i class="fas fa-eye"></i></a>
                                   {% if  acquisition.full_path %}
                                       <button class="btn btn-icon btn-warning" data-toggle="modal"
-                                     data-target="#filePathModal-{{ acquisition.acquisition_id }}">
+                                     data-target="#filePathModal-{{ acquisition.id }}">
                                       <i class="fas fa-folder" data-toggle="tooltip" data-title="More details"></i></button>
                                   {% else %}
                                         <button class="btn btn-icon btn-warning disabled" data-toggle="tooltip" data-title="Not found">
@@ -180,20 +180,21 @@
 
 {% block modalstuff %}
     {% for acquisition in acquisitionHistory %}
-        {% if acquisition.acquisition_full_path %}
-            <div class="modal fade" tabindex="-1" role="dialog" id="filePathModal-{{ acquisition.acquisition_id }}">
+        {% if acquisition.full_path %}
+            <div class="modal fade" tabindex="-1" role="dialog" id="filePathModal-{{ acquisition.id }}">
               <div class="modal-dialog modal-dialog-centered" role="document"  style="width: 600px; max-width: 90%;">
                 <div class="modal-content">
                   <div class="modal-header">
-                    <h5 class="modal-title">Detail ID of {{ acquisition.acquisition_id }}</h5>
+                    <h5 class="modal-title">Detail ID of {{ acquisition.id }}</h5>
                     <button type="button" class="close" data-dismiss="modal" aria-label="Close">
                       <span aria-hidden="true">&times;</span>
                     </button>
                   </div>
                   <div class="modal-body">
                     <p>
-                        <strong>Path</strong>: {{ acquisition.acquisition_full_path }}/{{ acquisition.acquisition_file_name }}<br>
-                        <strong>Hash SHA256</strong>: {{ acquisition.acquisition_hash }}
+                        <strong>Path</strong>: {{ acquisition.full_path }}/{{ acquisition.file_name }}<br>
+                        <strong>Original Hash SHA256</strong>: {{ acquisition.physical.hash_before_acquisition }}
+                        <strong>Result Hash SHA256</strong>: {{ acquisition.physical.hash_after_acquisition }}
                     </p>
                   </div>
                   <div class="modal-footer bg-whitesmoke br">
@@ -262,8 +263,9 @@
             const $checkbox = $('#gridCheck');
             
             // Check acquisition status on load
-            const acquisitionStatus = '{{ acquisitionProcess.acquisition_status }}';
-            const transferredBytes = '{{ acquisitionProcess.acquisition_total_transferred_bytes }}';
+            const acquisitionStatus = '{{ acquisitionProcess.status }}';
+            const transferredBytes = '{{ acquisitionProcess.physical.total_transferred_bytes }}';
+
             if (acquisitionStatus === 'progress' || transferredBytes > 0) {
                 fetchNewProgress();
             }

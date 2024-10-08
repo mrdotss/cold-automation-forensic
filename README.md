@@ -6,7 +6,7 @@ A web application (Django 5) designed for wired/wireless (remote) acquisition of
 
 ## Getting Started
 
-To begin using RAAS, follow these steps to set up your development environment:
+To begin using this app, follow these steps to set up your development environment:
 
 Note: 
 * I don't provide feature to root the device, so you need to root the device if you want to use the physical acquisition (but some basic task doesn't need root)
@@ -28,6 +28,7 @@ Also documented [here](https://s3.wasabisys.com/c343765-a/User-Manual/RAAS%20-%2
 ### For The Device
 - You need to enable USB Debugging on your device and connect it to your computer via USB/IP Address
 - And then you can check if the device is connected by running `adb devices` on your terminal
+- And already install the BusyBox on your device (can install via recovery, root app like magisk, ksu, or PlayStore)
 
 ### Step-by-Step Setup Guide
 

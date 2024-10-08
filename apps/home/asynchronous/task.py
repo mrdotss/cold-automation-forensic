@@ -40,6 +40,18 @@ def physicalAcquisition(group_name, unique_code):
 
     SERIAL_ID = getAcquisitionObject.device_id if not forensic_core.is_hashed_ip_or_not(getAcquisitionObject.device_id) else forensic_core.decrypt(getAcquisitionObject.device_id, forensic_core.secret_key)
 
+    # Set up busybox on the device
+    busybox_installed = forensic_core.setupBusybox(getAcquisitionObject.device_id)
+    if not busybox_installed:
+        async_to_sync(channel_layer.group_send)(
+            group_name,
+            {
+                'type': 'acquisition_error',
+                'message': 'Failed to set up busybox on the device.',
+            }
+        )
+        return
+
     PORT_SERVER = 5555  # Fixed port on the device
 
     acquisition_start_time = datetime.now()
@@ -84,7 +96,7 @@ def physicalAcquisition(group_name, unique_code):
                     }
                 )
 
-                hashOutput = forensic_core.hashPartition(serial_id=SERIAL_ID, partition_id=PARTITION)
+                hashOutput = forensic_core.hashPartition(serial_id=SERIAL_ID, partition_id=PARTITION) if not getAcquisitionObject.physical.hash_before_acquisition else getAcquisitionObject.physical.hash_before_acquisition
                 getAcquisitionObject.physical.hash_before_acquisition = hashOutput
                 getAcquisitionObject.physical.save()
 
@@ -111,19 +123,31 @@ def physicalAcquisition(group_name, unique_code):
         # Check if we need to resume
         seek_skip_block = getAcquisitionObject.physical.total_transferred_bytes or 0
 
-        # Construct the android_command
-        android_command = f"adb -s {SERIAL_ID} shell \"su 0 -c 'dd if=/dev/block/{PARTITION} bs=512"
+        # Determine which 'dd' and 'nc' commands to use on the device
+        dd_command = '/data/local/busybox dd'
+        nc_command = '/data/local/busybox nc'
+
+        # Set block size
+        bs = 512
+        seek_blocks = seek_skip_block // bs
+
+        # Construct the android_command without iflag=fullblock and -w option
+        android_command = f"adb -s {SERIAL_ID} shell \"su 0 -c '{dd_command} if=/dev/block/{PARTITION} bs={bs}"
         if seek_skip_block > 0:
-            android_command += (f" skip={getAcquisitionObject.physical.total_transferred_bytes // 512}")
-        android_command += f" | busybox nc -l -p {PORT_SERVER}'\""
+            android_command += f" skip={seek_blocks}"
+        android_command += f" | {nc_command} -l -p {PORT_SERVER}'\""
+
+        # Start the android_process first
         android_process = subprocess.Popen(android_command, shell=True)
         time.sleep(2)
 
-        # Construct the server_command
+        # Construct the server_command with -q option (if supported)
         if seek_skip_block > 0:
-            server_command = f"netcat {IP} {PORT_CLIENT} | dd of={LOCATION}/{FILE_NAME} bs=512 seek={getAcquisitionObject.physical.total_transferred_bytes // 512}"
+            server_command = f"netcat {IP} {PORT_CLIENT} -q 1 | dd of={LOCATION}/{FILE_NAME} bs={bs} seek={seek_blocks} conv=fsync"
         else:
-            server_command = f"netcat {IP} {PORT_CLIENT} > {LOCATION}/{FILE_NAME}"
+            server_command = f"netcat {IP} {PORT_CLIENT} -q 1 | dd of={LOCATION}/{FILE_NAME} bs={bs} conv=fsync"
+
+        # Start the server_process after the device is listening
         server_process = subprocess.Popen(server_command, shell=True)
         time.sleep(2)
 
@@ -307,6 +331,10 @@ Verification:
                     getAcquisitionObject.last_active = datetime.now()
                     getAcquisitionObject.save()
 
+                    # Clean up adb forwarding if USB connection
+                    if is_usb_connection:
+                        adb_instance.adb_forward_remove(local_port, device=SERIAL_ID)
+
                     async_to_sync(channel_layer.group_send)(
                         group_name,
                         {
@@ -323,6 +351,11 @@ Verification:
                     getAcquisitionObject.save()
                     terminate_process(server_process)
                     terminate_process(android_process)
+
+                    # Clean up adb forwarding if USB connection
+                    if is_usb_connection:
+                        adb_instance.adb_forward_remove(local_port, device=SERIAL_ID)
+
                     async_to_sync(channel_layer.group_send)(
                         group_name,
                         {
@@ -337,6 +370,11 @@ Verification:
 
     except Exception as e:
         logging.error(f"Error during acquisition: {e}")
+
+        # Clean up adb forwarding if USB connection
+        if is_usb_connection:
+            adb_instance.adb_forward_remove(local_port, device=SERIAL_ID)
+
         async_to_sync(channel_layer.group_send)(
             group_name,
             {
@@ -349,6 +387,11 @@ Verification:
         terminate_process(server_process)
         terminate_process(android_process)
         release_file_handles(f'{LOCATION}/{FILE_NAME}')
+
+        # Clean up adb forwarding if USB connection
+        if is_usb_connection:
+            adb_instance.adb_forward_remove(local_port, device=SERIAL_ID)
+
         async_to_sync(channel_layer.group_send)(
             group_name,
             {
@@ -357,10 +400,7 @@ Verification:
             }
         )
         return
-    finally:
-        # Clean up adb forwarding if USB connection
-        if is_usb_connection:
-            adb_instance.adb_forward_remove(local_port, device=SERIAL_ID)
+
 
 def terminate_process(process):
     """Terminate a process and its child processes."""

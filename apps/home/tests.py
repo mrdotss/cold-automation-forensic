@@ -1,9 +1,9 @@
-from django.test import TestCase
-
-# Create your tests here.
-
+import subprocess
+from unittest.mock import patch, MagicMock
 from apps.caf.ADBCore import ADBCore
+from django.test import TestCase
 import logging
+import os
 
 logger = logging.getLogger(__name__)
 
