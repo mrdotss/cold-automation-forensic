@@ -4,6 +4,7 @@ import subprocess
 import threading
 import socket
 import random
+import re
 
 
 class ADBCore:
@@ -53,6 +54,114 @@ class ADBCore:
 
         error_message = stderr.decode('utf-8')
         return p.returncode, result, error_message
+
+    def device_port_generator(self, device=None, port_range=(50000, 60000)):
+        """
+        Generates an available port on the device.
+
+        Parameters:
+            device (str): The serial number of the device. If None, uses default device.
+            port_range (tuple): A tuple (start_port, end_port) specifying the port range.
+
+        Returns:
+            int: An available port number on the device, or None if failed.
+        """
+        start_port, end_port = port_range
+
+        # Get the list of ports currently in use on the device
+        used_ports = self.get_device_used_ports(device)
+
+        # Find an available port
+        for _ in range(1000):  # Try up to 1000 times
+            port = random.randint(start_port, end_port)
+            if port not in used_ports:
+                # Optionally, you can perform an additional check here
+                return port
+        else:
+            self.logger.error("Failed to find an available port on the device")
+            return None
+
+    def get_device_used_ports(self, device=None):
+        """
+        Retrieves a set of ports currently in use on the device.
+
+        Parameters:
+            device (str): The serial number of the device. If None, uses default device.
+
+        Returns:
+            set: A set of integers representing used ports.
+        """
+        used_ports = set()
+
+        # Try using netstat or ss to get the list of open ports
+        for command in ['netstat -tulpn', 'ss -tulpn']:
+            rc, output, err = self.adb(['shell', command], device=device)
+            if rc == 0 and output:
+                # Parse the output to extract port numbers
+                ports = self.parse_netstat_output(output)
+                used_ports.update(ports)
+                return used_ports  # Return immediately after successful parsing
+
+        # Fallback to parsing /proc/net/tcp
+        rc, output, err = self.adb(['shell', 'cat', '/proc/net/tcp'], device=device)
+        if rc == 0 and output:
+            ports = self.parse_proc_net_tcp(output)
+            used_ports.update(ports)
+
+        return used_ports
+
+    def parse_netstat_output(self, output):
+        """
+        Parses the output of netstat or ss command to extract used ports.
+
+        Parameters:
+            output (str): The output string from netstat or ss command.
+
+        Returns:
+            set: A set of integers representing used ports.
+        """
+        used_ports = set()
+        lines = output.strip().split('\n')
+        for line in lines:
+            # Skip headers
+            if 'Proto' in line or 'tcp' not in line:
+                continue
+            parts = re.split(r'\s+', line)
+            if len(parts) >= 4:
+                local_address = parts[3]
+                # Extract port
+                if ':' in local_address:
+                    port_str = local_address.rsplit(':', 1)[-1]
+                    try:
+                        port = int(port_str)
+                        used_ports.add(port)
+                    except ValueError:
+                        continue
+        return used_ports
+
+    def parse_proc_net_tcp(self, output):
+        """
+        Parses the /proc/net/tcp output to extract used ports.
+
+        Parameters:
+            output (str): The output string from /proc/net/tcp.
+
+        Returns:
+            set: A set of integers representing used ports.
+        """
+        used_ports = set()
+        lines = output.strip().split('\n')
+        for line in lines[1:]:  # Skip the header line
+            parts = line.strip().split()
+            if len(parts) >= 2:
+                local_address = parts[1]
+                ip_hex, port_hex = local_address.split(':')
+                try:
+                    port = int(port_hex, 16)
+                    used_ports.add(port)
+                except ValueError:
+                    continue
+        return used_ports
 
     def adb_forward_generator(self, device=None, local_port=None, remote_port=None):
         """

@@ -37,6 +37,7 @@ def physicalAcquisition(group_name, unique_code):
     BRIDGE = getAcquisitionObject.connection_type
 
     is_usb_connection = BRIDGE.lower() == 'usb'
+    is_wifi_connection = BRIDGE.lower() == 'wifi'
 
     SERIAL_ID = getAcquisitionObject.device_id if not forensic_core.is_hashed_ip_or_not(getAcquisitionObject.device_id) else forensic_core.decrypt(getAcquisitionObject.device_id, forensic_core.secret_key)
 
@@ -52,7 +53,7 @@ def physicalAcquisition(group_name, unique_code):
         )
         return
 
-    PORT_SERVER = 5555  # Fixed port on the device
+    PORT_SERVER = 5151  # Fixed port on the device
 
     acquisition_start_time = datetime.now()
 
@@ -75,9 +76,24 @@ def physicalAcquisition(group_name, unique_code):
             # Update IP and PORT_CLIENT to use localhost and the forwarded port
             IP = '127.0.0.1'
             PORT_CLIENT = local_port
-        else:
-            # For TCP/IP connections, ensure PORT_CLIENT is set to the correct device port
-            PORT_CLIENT = PORT_SERVER  # Assuming PORT_SERVER is the port on the device
+
+        if is_wifi_connection and (getAcquisitionObject.physical.total_transferred_bytes == 0 or getAcquisitionObject.physical.total_transferred_bytes  > 0):
+            device_port = adb_instance.device_port_generator(device=SERIAL_ID) if not getAcquisitionObject.port else ""
+            getAcquisitionObject.port = device_port if device_port != "" else getAcquisitionObject.port
+            getAcquisitionObject.save()
+
+            PORT_SERVER = getAcquisitionObject.port
+            PORT_CLIENT = getAcquisitionObject.port
+
+            if device_port is None:
+                async_to_sync(channel_layer.group_send)(
+                    group_name,
+                    {
+                        'type': 'acquisition_error',
+                        'message': 'Failed to find an available port on the device for netcat.',
+                    }
+                )
+                return
 
         if getAcquisitionObject.physical.is_verify_first:
             try:
@@ -108,6 +124,10 @@ def physicalAcquisition(group_name, unique_code):
                     }
                 )
             except Exception as e:
+
+                getAcquisitionObject.status = 'failed'
+                getAcquisitionObject.save()
+
                 async_to_sync(channel_layer.group_send)(
                     group_name,
                     {
@@ -137,6 +157,8 @@ def physicalAcquisition(group_name, unique_code):
             android_command += f" skip={seek_blocks}"
         android_command += f" | {nc_command} -l -p {PORT_SERVER}'\""
 
+        print(f'Android Command: {android_command}')
+
         # Start the android_process first
         android_process = subprocess.Popen(android_command, shell=True)
         time.sleep(2)
@@ -146,6 +168,8 @@ def physicalAcquisition(group_name, unique_code):
             server_command = f"netcat {IP} {PORT_CLIENT} -q 1 | dd of={LOCATION}/{FILE_NAME} bs={bs} seek={seek_blocks} conv=fsync"
         else:
             server_command = f"netcat {IP} {PORT_CLIENT} -q 1 | dd of={LOCATION}/{FILE_NAME} bs={bs} conv=fsync"
+
+        print(f'Server Command: {server_command}')
 
         # Start the server_process after the device is listening
         server_process = subprocess.Popen(server_command, shell=True)
@@ -370,6 +394,8 @@ Verification:
 
     except Exception as e:
         logging.error(f"Error during acquisition: {e}")
+        getAcquisitionObject.status = 'failed'
+        getAcquisitionObject.save()
 
         # Clean up adb forwarding if USB connection
         if is_usb_connection:
@@ -387,6 +413,9 @@ Verification:
         terminate_process(server_process)
         terminate_process(android_process)
         release_file_handles(f'{LOCATION}/{FILE_NAME}')
+
+        getAcquisitionObject.status = 'failed'
+        getAcquisitionObject.save()
 
         # Clean up adb forwarding if USB connection
         if is_usb_connection:

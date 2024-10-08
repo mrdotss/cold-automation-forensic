@@ -3,7 +3,7 @@ from unittest.mock import patch, MagicMock
 from apps.caf.ADBCore import ADBCore
 from django.test import TestCase
 import logging
-import os
+import os, time
 
 logger = logging.getLogger(__name__)
 

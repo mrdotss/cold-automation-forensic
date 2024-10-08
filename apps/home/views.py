@@ -159,11 +159,11 @@ def get_acquisition_presetup(request, serial_id, unique_code):
 
     print(f"Serial: {serial_id} | Unique: {unique_code} | Object: {acquisitionObject}")
 
-    if acquisitionObject.status in ["progress", "pending", "failed"]:
+    if acquisitionObject.status in ["in_progress", "pending", "failed"]:
 
         if acquisitionObject.status == "failed":
             # Resume the failed acquisition
-            acquisitionObject.status = "progress"
+            acquisitionObject.status = "in_progress"
             acquisitionObject.save()
 
         result = physicalAcquisition.delay('physical-acquisition-progress_%s' % serial_id, unique_code)
@@ -185,7 +185,7 @@ def get_acquisition_setup(request, serial_id, unique_code):
     if ColdForensic().checkSerialID(serial_id) and isUniqueCode:
         getAcquisitionObject = Acquisition.objects.get(unique_link=unique_code)
 
-        if getAcquisitionObject.status in ["progress", "pending", "failed"]:
+        if getAcquisitionObject.status in ["in_progress", "pending", "failed"]:
             return render(request, 'includes/acquisition_progress.html', {'acquisitionObject': getAcquisitionObject})
         # if getAcquisitionObject.status in ["failed"]:
         #     return render(request, 'home/device-acquisition-resume.html', {'acquisitionObject': getAcquisitionObject})
@@ -475,7 +475,7 @@ class AcquisitionSetup(View):
             return render(request, 'home/device-acquisition-ffs-setup.html', context)
 
         # Check if the acquisition needs to resume
-        if hasattr(acquisitionObject, 'physical') and acquisitionObject.physical.total_transferred_bytes > 0 and acquisitionObject.status in ["failed", "progress"]:
+        if hasattr(acquisitionObject, 'physical') and acquisitionObject.physical.total_transferred_bytes >= 0 and acquisitionObject.status in ["failed", "in_progress"]:
             context = {
                 'serial_id': serial_id,
                 'acquisitionProcess': acquisitionObject,
@@ -576,7 +576,8 @@ class AcquisitionSetup(View):
         acquisitionObject.file_name = acquisition_file_name
         acquisitionObject.full_path = data['full_path']
         acquisitionObject.client_ip = data.get('client_ip') if data.get('client_ip') != "USB" else ""  # Handle optional fields safely
-        acquisitionObject.status = "progress"
+        acquisitionObject.port = data.get('port') if data.get('port') != "USB" else ""
+        acquisitionObject.status = "in_progress"
         acquisitionObject.size = round(int(data['partition_size']) / 1000000, 2)
 
         # Save the updated acquisition object

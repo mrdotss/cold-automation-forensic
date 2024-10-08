@@ -136,7 +136,7 @@
                               <td>
                                   {% if acquisition.status == "pending" %}
                                     <div class="badge badge-warning">Pending</div>
-                                  {% elif acquisition.status == "progress" %}
+                                  {% elif acquisition.status == "in_progress" %}
                                     <div class="badge badge-primary">Progress</div>
                                   {% elif acquisition.status == "completed" %}
                                     <div class="badge badge-success">Completed</div>
@@ -266,7 +266,7 @@
             const acquisitionStatus = '{{ acquisitionProcess.status }}';
             const transferredBytes = '{{ acquisitionProcess.physical.total_transferred_bytes }}';
 
-            if (acquisitionStatus === 'progress' || transferredBytes > 0) {
+            if (acquisitionStatus === 'in_progress' || transferredBytes > 0) {
                 fetchNewProgress();
             }
 
