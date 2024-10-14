@@ -4,6 +4,7 @@
 
 A web application (Django 5) designed for wired/wireless (remote) acquisition of data from Android devices, based on [WebADB](https://github.com/mrdotss/webadb), which I recently used, but with slightly more powerful features.
 
+This project is essentially my final thesis from college, called RAAS (Remote Acquisition Android Smartphone), but I am now working to improve it to make it more useful and to contribute more to the DFIR community.
 ## Getting Started
 
 To begin using this app, follow these steps to set up your development environment:
