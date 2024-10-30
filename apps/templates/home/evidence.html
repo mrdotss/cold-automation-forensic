@@ -35,11 +35,11 @@
                     <tr>
                       <th class="text-center">#</th>
                       <th>Case Name</th>
+                      <th>Evidence Number</th>
                       <th>Evidence Type</th>
                       <th>Description</th>
                       <th>Acquired By</th>
-                      <th>Acquisition Date</th>
-                      <th>Storage Location</th>
+                      <th>Acquisition Log</th>
                       <th>Status</th>
                       <th>Chain of Custody</th>
                       <th>Action</th>
@@ -50,16 +50,11 @@
                       <tr>
                       <td>{{ forloop.counter }}</td>
                       <td>{{ evidence.case.case_name }}</td>
+                      <td>{{ evidence.evidence_number }}</td>
                       <td>{{ evidence.evidence_type }}</td>
                       <td>{{ evidence.evidence_description }}</td>
                       <td>{{ evidence.evidence_acquired_by.user_name }}</td>
-                      <td>{{ evidence.evidence_acquired_date }}</td>
-                          {% if evidence.evidence_file_location %}
-                              <td><a href="#" class="btn btn-secondary">Show</a></td>
-                          {% else %}
-                              <td>NULL</td>
-                          {% endif %}
-
+                      <td><button class="btn btn-secondary history-btn" data-evidence-id="{{ evidence.evidence_id }}">History</button></td>
                       {% load custom_filters %}
                       {% if evidence.evidence_status %}
                           <td><div class="badge {{ evidence.evidence_status|evidence_status_badge_class }}">{{ evidence.evidence_status }}</div></td>
@@ -149,6 +144,23 @@
                 $('body').append(data);
                 // Show the modal
                 $('#exampleModal-' + evidenceId).modal('show');
+              }
+            });
+          });
+        });
+        
+        $(document).ready(function() {
+          $('.history-btn').on('click', function() {
+            const evidenceId = $(this).data('evidence-id');
+            $.ajax({
+              url: '/evidence/' + evidenceId + '/acquisition_history',
+              type: 'GET',
+              success: function(data) {
+                // The 'data' parameter contains the modal data returned from the server
+                // Generate the modal using this data and append it to the body
+                $('body').append(data);
+                // Show the modal
+                $('#historyModal-' + evidenceId).modal('show');
               }
             });
           });

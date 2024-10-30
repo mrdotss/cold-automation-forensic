@@ -1,7 +1,6 @@
 from django.contrib.auth.models import (UserManager, AbstractBaseUser, PermissionsMixin)
-from auditlog.registry import auditlog
-from django.db import models
 from django.db.models import JSONField
+from django.db import models
 import uuid
 import os
 
@@ -60,13 +59,14 @@ class CustomUserManager(UserManager):
 
 
 class User(AbstractBaseUser, PermissionsMixin):
-    user_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user_name = models.CharField(max_length=50)
     user_email = models.CharField(max_length=50, unique=True)
     user_roles = models.CharField(max_length=30, choices=[('Investigator', 'Investigator'),
                                                           ('Forensics Analyst', 'Forensics Analyst'),
                                                           ('Lab Technician', 'Lab Technician')])
     user_phone = models.CharField(max_length=15)
+    default_folder = models.CharField(max_length=255, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     last_edited_at = models.DateTimeField(auto_now=True)
 
@@ -99,9 +99,12 @@ class User(AbstractBaseUser, PermissionsMixin):
 
 class Case(models.Model):
     case_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
-    case_member = models.ManyToManyField(User, related_name='case_member')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='created_cases')
+    case_number = models.CharField(max_length=50, null=True, blank=True, unique=True) # Just a unique identifier for the case
+    case_member = models.ManyToManyField(User, related_name='case_member', blank=True)
     case_name = models.CharField(max_length=30)
+    description = models.TextField(null=True, blank=True) # Just a brief description of the case
+    additional_info = JSONField(null=True, blank=True) # Any notes that the user wants to add
     case_is_open = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     last_edited_at = models.DateTimeField(auto_now=True)
@@ -113,12 +116,12 @@ class Case(models.Model):
 class Evidence(models.Model):
     evidence_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     case = models.ForeignKey(Case, on_delete=models.CASCADE)
-    evidence_description = models.CharField(max_length=255, null=True, blank=True)
+    evidence_number = models.CharField(max_length=50, unique=True, null=True, blank=True) # Just a unique identifier for the evidence
+    evidence_description = models.TextField(null=True, blank=True)
     evidence_acquired_by = models.ForeignKey(User, on_delete=models.CASCADE, default=None)
     evidence_chain_of_custody = JSONField(default=list, null=True, blank=True)
     evidence_type = models.CharField(max_length=30)
     evidence_status = models.CharField(max_length=30, default=None)
-    evidence_file_location = models.CharField(max_length=255, null=True, blank=True)
     evidence_acquired_date = models.DateField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     last_edited_at = models.DateTimeField(auto_now=True)
@@ -229,13 +232,3 @@ class FullFileSystemAcquisition(models.Model):
 
     def __str__(self):
         return f"Full File System Details for {self.acquisition}"
-
-
-# Register the models with the auditlog
-auditlog.register(User)
-auditlog.register(Case)
-auditlog.register(Evidence)
-auditlog.register(Acquisition)
-auditlog.register(PhysicalAcquisition)
-auditlog.register(LogicalAcquisition)
-auditlog.register(FullFileSystemAcquisition)

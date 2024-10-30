@@ -1,6 +1,6 @@
 from django.urls import path
 from apps.home import views
-from apps.caf.cold_action import getDevices, getLogcat, postShell, postKey, postText, getScreenshot
+from apps.caf.cold_action import getDevices, getLogcat, postShell, postKey, postText, getScreenshot, simulate_touch
 
 urlpatterns = [
 
@@ -33,11 +33,12 @@ urlpatterns = [
 
     ## No Class
     path('evidence/<uuid:evidence_id>/modal_data', views.get_evidence_modal_data, name='get_evidence_modal_data'),
-    path('acquisition-setup/<str:serial_id>/save-location/<uuid:unique_code>', views.get_acquisition_save_location,
+path('evidence/<uuid:evidence_id>/acquisition_history', views.get_evidence_acquisition_history, name='get_evidence_acquisition_history'),
+    path('acquisition-setup/<str:serial_id>/save-location/<uuid:unique_link>', views.get_acquisition_save_location,
          name='device_acquisition_save_location'),
-    path('acquisition-setup/<str:serial_id>/pre-progress/<uuid:unique_code>', views.get_acquisition_presetup,
+    path('acquisition-setup/<str:serial_id>/pre-progress/<uuid:unique_link>', views.get_acquisition_presetup,
          name='device_acquisition_pre_setup'),
-    path('acquisition-setup/<str:serial_id>/progress/<uuid:unique_code>', views.get_acquisition_setup,
+    path('acquisition-setup/<str:serial_id>/progress/<uuid:unique_link>', views.get_acquisition_setup,
          name='device_acquisition_setup'),
 
     path('device/api/detail/<str:id>', getDevices),
@@ -46,5 +47,6 @@ urlpatterns = [
     path('device/key/<str:id>', postKey),
     path('device/text/<str:id>', postText),
     path('device/screenshot/<str:id>', getScreenshot),
+    path('device/simulate_touch/<str:device_id>', simulate_touch),
 
 ]

@@ -7,6 +7,16 @@ EVIDENCE_STATUS_CHOICES = [('Acquired', 'Acquired'), ('Analyzed', 'Analyzed'), (
 
 # Creating form
 class CaseUpdateForm(forms.ModelForm):
+    case_number = forms.CharField(
+        label='case_number',
+        widget=forms.TextInput(
+            attrs={
+                "placeholder": "Case Number",
+                "class": "form-control",
+                "autofocus": "true",
+            }
+        ), required=True
+    )
     case_name = forms.CharField(
         label='case_name',
         widget=forms.TextInput(
@@ -14,6 +24,18 @@ class CaseUpdateForm(forms.ModelForm):
                 "placeholder": "Case Name",
                 "class": "form-control",
                 "autofocus": "true",
+            }
+        ), required=True
+    )
+    description = forms.CharField(
+        label='case_number',
+        widget=forms.Textarea(
+            attrs={
+                "placeholder": "Some description..",
+                "class": "form-control",
+                "autofocus": "true",
+                "rows": "",
+                "cols": "",
             }
         ), required=True
     )
@@ -40,7 +62,14 @@ class CaseUpdateForm(forms.ModelForm):
 
     class Meta:
         model = Case
-        fields = ['case_name', 'case_member', 'case_is_open']
+        fields = ['case_number', 'description', 'case_name', 'case_member', 'case_is_open', 'additional_info']
+
+    def __init__(self, *args, **kwargs):
+        current_user = kwargs.pop('current_user', None)  # Extract current_user from kwargs
+        super(CaseUpdateForm, self).__init__(*args, **kwargs)
+        if current_user:
+            # Exclude the current user from the queryset
+            self.fields['case_member'].queryset = User.objects.exclude(id=current_user.id)
 
 
 class EvidenceUpdateForm(forms.ModelForm):
@@ -73,15 +102,25 @@ class EvidenceUpdateForm(forms.ModelForm):
             # Get the evidence_acquired_by for the case
             acquired_by = case.case_member.all()
             # Create choices for the evidence_acquired_by field
-            self.fields['evidence_acquired_by'].choices = [(member.user_id, member.user_name) for member in acquired_by]
+            self.fields['evidence_acquired_by'].choices = [(member.id, member.user_name) for member in acquired_by]
             # Set the initial value of evidence_acquired_by to the existing value
-            self.fields['evidence_acquired_by'].initial = evidence.evidence_acquired_by.user_id
+            self.fields['evidence_acquired_by'].initial = evidence.evidence_acquired_by.id
 
     evidence_description = forms.CharField(
         label='evidence_description',
+        widget=forms.Textarea(
+            attrs={
+                "placeholder": "Some description..",
+                "class": "form-control",
+                "autofocus": "true",
+            }
+        )
+    )
+    evidence_number = forms.CharField(
+        label='evidence_number',
         widget=forms.TextInput(
             attrs={
-                "placeholder": "whome.mp4",
+                "placeholder": "Ex: 001",
                 "class": "form-control",
                 "autofocus": "true",
             }
@@ -119,13 +158,13 @@ class EvidenceUpdateForm(forms.ModelForm):
     def clean_evidence_acquired_by(self):
         user_id = self.cleaned_data.get('evidence_acquired_by')
         try:
-            return User.objects.get(user_id=user_id)
+            return User.objects.get(id=user_id)
         except User.DoesNotExist:
             raise forms.ValidationError('User with this ID does not exist.')
 
     class Meta:
         model = Evidence
-        fields = ['evidence_description', 'evidence_status', 'evidence_type', 'case',
+        fields = ['evidence_description', 'evidence_status', 'evidence_type', 'case', 'evidence_number',
                   'evidence_acquired_by', 'evidence_acquired_date', 'evidence_chain_of_custody']
 
 
@@ -139,7 +178,7 @@ class ChainOfCustodyForm(forms.Form):
         )
     )
     user = forms.ModelChoiceField(
-        queryset=User.objects.all(), to_field_name="user_id",
+        queryset=User.objects.all(), to_field_name="id",
         widget=forms.Select(
             attrs={
                 "class": "form-control select2",
@@ -161,6 +200,71 @@ class ChainOfCustodyForm(forms.Form):
                 "class": "form-control",
                 "id": "coc_details",
                 "placeholder": "Location: xx/something..."
+            }
+        )
+    )
+
+class AdditionalInfoForm(forms.Form):
+    addinfo_name = forms.CharField(
+        widget=forms.TextInput(
+            attrs={
+                "class": "form-control",
+                "id": "addinfo_name",
+                "placeholder": ""
+            }
+        )
+    )
+    addinfo_agency = forms.CharField(
+        widget=forms.TextInput(
+            attrs={
+                "class": "form-control",
+                "id": "addinfo_agency",
+                "placeholder": ""
+            }
+        )
+    )
+    addinfo_phone = forms.CharField(
+        widget=forms.TextInput(
+            attrs={
+                "class": "form-control",
+                "id": "addinfo_phone",
+                "placeholder": ""
+            }
+        )
+    )
+    addinfo_fax = forms.CharField(
+        widget=forms.TextInput(
+            attrs={
+                "class": "form-control",
+                "id": "addinfo_fax",
+                "placeholder": ""
+            }
+        )
+    )
+    addinfo_address = forms.CharField(
+        widget=forms.TextInput(
+            attrs={
+                "class": "form-control",
+                "id": "addinfo_address",
+                "placeholder": ""
+            }
+        )
+    )
+    addinfo_email = forms.CharField(
+        widget=forms.TextInput(
+            attrs={
+                "class": "form-control",
+                "id": "addinfo_email",
+                "placeholder": ""
+            }
+        )
+    )
+    addinfo_notes = forms.CharField(
+        widget=forms.Textarea(
+            attrs={
+                "class": "form-control",
+                "id": "addinfo_notes",
+                "placeholder": ""
             }
         )
     )

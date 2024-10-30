@@ -33,8 +33,9 @@
                   <thead>
                     <tr>
                       <th>#</th>
-                      <th>Name</th>
-                      <th>Members</th>
+                      <th>Case Number</th>
+                      <th>Case Name</th>
+                      <th>Case Members</th>
                       <th>Create At</th>
                       <th>Status</th>
                       <th>Action</th>
@@ -44,6 +45,7 @@
                   {% for case in case_list %}
                     <tr>
                       <td>{{ forloop.counter }}</td>
+                      <td>{{ case.case_number }}</td>
                       <td>{{ case.case_name }}</td>
                       <td>
                         {% for member_list in case.case_member.all %}
@@ -59,7 +61,7 @@
                           {% endif %}
                       </td>
                       <td>
-                          <a href="#" class="btn btn-icon btn-info"><i class="fas fa-eye"></i></a>
+{#                          <a href="#" class="btn btn-icon btn-info"><i class="fas fa-eye"></i></a>#}
                           <a href="update/{{ case.case_id }}" class="btn btn-icon btn-warning"><i class="fas fa-pen"></i></a>
                           <button class="btn btn-danger delete-case-btn" data-case-id="{{ case.case_id }}"
                                   data-toggle="modal" data-target="#exampleModal-{{ case.case_id }}"

@@ -1,9 +1,7 @@
 from django.http import JsonResponse, HttpResponse
-from django.views.decorators.csrf import csrf_exempt
 from .ColdForensic import ColdForensic
 from .ADBCore import ADBCore
-import json
-import logging
+import json, re, logging
 
 
 logger = logging.getLogger(__name__)
@@ -29,7 +27,6 @@ def getLogcat(request, id):
         return HttpResponse(out)
 
 
-@csrf_exempt
 def postKey(request, id):
     if request.method == 'POST':
         try:
@@ -60,7 +57,6 @@ def postKey(request, id):
         return JsonResponse({'error': 'Invalid request method'}, status=400)
 
 
-@csrf_exempt
 def postText(request, id):
     if request.method == 'POST':
         payload = json.loads(request.body.decode())  # Ensure decoding for compatibility
@@ -82,7 +78,6 @@ def postText(request, id):
         return JsonResponse({'error': 'Invalid request method'}, status=400)
 
 
-@csrf_exempt
 def postShell(request, id):
     if request.method == "POST":
         payload = json.loads(request.body.decode())  # Ensure decoding for compatibility
@@ -110,11 +105,59 @@ def getScreenshot(request, id):
         if len(id) > 15 and cold_forensic_instance.checkSerialID(id):
             device = cold_forensic_instance.decrypt(id, cold_forensic_instance.secret_key)
 
+        # Get device screen resolution
+        rc, output, err = adb_instance.adb(['shell', 'wm', 'size'], device=device)
+        if rc != 0:
+            print(err)
+            return HttpResponse(err, status=500)
+        else:
+            match = re.search(r'Physical size: (\d+)x(\d+)', output)
+            if match:
+                screen_width = int(match.group(1))
+                screen_height = int(match.group(2))
+            else:
+                # Default to 1080p if unable to parse
+                screen_width = 1080
+                screen_height = 1920
+
         (rc, out, err) = adb_instance.adb(['exec-out', 'screencap', '-p'], device=device, binary_output=True)
         if rc != 0:
             print(err)
             return HttpResponse(err, status=500)
 
-        return HttpResponse(out, content_type="image/png")
+        # Return the image along with screen dimensions in headers
+        response = HttpResponse(out, content_type="image/png")
+        response['X-Screen-Width'] = screen_width
+        response['X-Screen-Height'] = screen_height
+        return response
+    else:
+        return JsonResponse({'error': 'Invalid request method'}, status=400)
+
+def simulate_touch(request, device_id):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            x = data.get('x')
+            y = data.get('y')
+
+            if x is None or y is None:
+                return JsonResponse({'error': 'Coordinates not provided'}, status=400)
+
+            # Decrypt device ID if necessary
+            device = device_id
+            if len(device_id) > 15 and cold_forensic_instance.checkSerialID(device_id):
+                device = cold_forensic_instance.decrypt(device_id, cold_forensic_instance.secret_key)
+
+            # Build the input tap command
+            # The input command for simulating touch is: input tap x y
+            command = ['shell', 'input', 'tap', str(x), str(y)]
+            rc, out, err = adb_instance.adb(command, device=device)
+
+            if rc != 0:
+                return JsonResponse({'error': 'Failed to simulate touch event', 'details': err}, status=500)
+
+            return JsonResponse({'status': 'success', 'x': x, 'y': y})
+        except json.JSONDecodeError:
+            return JsonResponse({'error': 'Invalid JSON data'}, status=400)
     else:
         return JsonResponse({'error': 'Invalid request method'}, status=400)

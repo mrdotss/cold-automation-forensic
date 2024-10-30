@@ -15,7 +15,7 @@ from django.views.generic import ListView, CreateView, UpdateView, DeleteView
 
 from ..caf.ColdForensic import ColdForensic
 from .models import Case, User, Evidence, Acquisition, PhysicalAcquisition
-from .forms import CaseUpdateForm, EvidenceUpdateForm, ChainOfCustodyForm
+from .forms import CaseUpdateForm, EvidenceUpdateForm, ChainOfCustodyForm, AdditionalInfoForm
 from apps.home.asynchronous.task import physicalAcquisition
 import time, random, string, json, uuid
 
@@ -83,18 +83,32 @@ class CaseCreateView(CreateView):
 
     model = Case
     template_name = 'home/case_create.html'
-    fields = ['case_name', 'case_is_open', 'case_member']
+    fields = ['case_number', 'description', 'case_name', 'case_is_open', 'case_member']
 
     def form_valid(self, form):
         form.instance.user = self.request.user
         response = super().form_valid(form)
-        self.object.case_member.add(self.request.user.user_id)
+        self.object.case_member.add(self.request.user.id)
         self.object.case_member.add(*self.request.POST.getlist('case_member'))
+
+        additional_info = {}
+        additional_info.update({
+            'addinfo_name': self.request.POST.get('addinfo_name'),
+            'addinfo_agency': self.request.POST.get('addinfo_agency'),
+            'addinfo_phone': self.request.POST.get('addinfo_phone'),
+            'addinfo_fax': self.request.POST.get('addinfo_fax'),
+            'addinfo_address': self.request.POST.get('addinfo_address'),
+            'addinfo_email': self.request.POST.get('addinfo_email'),
+            'addinfo_notes': self.request.POST.get('addinfo_notes'),
+        })
+
+        self.object.additional_info = additional_info
+        self.object.save()
         return response
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['home_user_list'] = User.objects.exclude(user_id=self.request.user.user_id)
+        context['home_user_list'] = User.objects.exclude(id=self.request.user.id)
         return context
 
     def get_success_url(self):
@@ -110,12 +124,81 @@ class CaseUpdateView(UpdateView):
     template_name = 'home/case_update.html'
     form_class = CaseUpdateForm
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        # Check if additional_info exists
+        has_additional_info = bool(self.object.additional_info)
+
+        if has_additional_info:
+            extra = 0
+            if isinstance(self.object.additional_info, list):
+                initial_data = self.object.additional_info
+            else:
+                initial_data = [self.object.additional_info]
+        else:
+            extra = 1  # Provide one empty form when no additional_info exists
+            initial_data = []
+
+        # Create the formset with the determined 'extra' value
+        AdditionalInfoFormSet = formset_factory(AdditionalInfoForm, extra=extra)
+
+        if self.request.method == 'POST':
+            context['additional_info_formset'] = AdditionalInfoFormSet(self.request.POST)
+        else:
+            context['additional_info_formset'] = AdditionalInfoFormSet(initial=initial_data)
+
+        return context
+
     def get_success_url(self):
         return reverse_lazy('cases_home')
 
     def get_object(self, queryset=None):
         case_id = self.kwargs['case_id']
         return get_object_or_404(Case, case_id=case_id)
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['current_user'] = self.request.user  # Pass current user to the form
+        return kwargs
+
+    def form_valid(self, form):
+        context = self.get_context_data()
+        additional_info_formset = context['additional_info_formset']
+
+        if additional_info_formset.is_valid():
+            response = super().form_valid(form)
+            case = self.object
+
+            # Get selected members from the form
+            selected_members = form.cleaned_data['case_member']
+
+            # Ensure the creator is included in the case members
+            selected_members = list(selected_members)  # Convert to list to allow modification
+            if case.user.id not in selected_members:
+                selected_members.append(self.request.user)
+
+            # Update the case members
+            case.case_member.set(selected_members)
+
+            additional_info = {}
+            for form in additional_info_formset.cleaned_data:
+                if not form.get('DELETE', False):
+                    additional_info.update({
+                        'addinfo_name': form.get('addinfo_name'),
+                        'addinfo_agency': form.get('addinfo_agency'),
+                        'addinfo_phone': form.get('addinfo_phone'),
+                        'addinfo_fax': form.get('addinfo_fax'),
+                        'addinfo_address': form.get('addinfo_address'),
+                        'addinfo_email': form.get('addinfo_email'),
+                        'addinfo_notes': form.get('addinfo_notes'),
+                    })
+
+            self.object.additional_info = additional_info
+            self.object.save()
+            return response
+        else:
+            return super().form_invalid(form)
 
 
 class CaseDeleteView(DeleteView):
@@ -142,7 +225,7 @@ class CaseDeleteView(DeleteView):
 @login_required(login_url='caf_login')
 def get_case_members(request, case_id):
     case = get_object_or_404(Case, case_id=case_id)
-    members = case.case_member.all().values('user_id', 'user_name')
+    members = case.case_member.all().values('id', 'user_name', 'user_roles')
     return JsonResponse(list(members), safe=False)
 
 
@@ -152,12 +235,18 @@ def get_evidence_modal_data(request, evidence_id):
     return render(request, 'includes/evidence_modal.html', {'evidence': evidence})
 
 @login_required(login_url='caf_login')
-def get_acquisition_presetup(request, serial_id, unique_code):
-    print(f"Serial: {serial_id} | Unique: {unique_code}")
+def get_evidence_acquisition_history(request, evidence_id):
+    acquisition = Acquisition.objects.filter(evidence=evidence_id)
+    evidence = Evidence.objects.get(evidence_id=evidence_id)
+    return render(request, 'includes/evidence_acquisition_history.html', {'acquisition': acquisition, 'evidence': evidence})
 
-    acquisitionObject = Acquisition.objects.get(unique_link=unique_code)
+@login_required(login_url='caf_login')
+def get_acquisition_presetup(request, serial_id, unique_link):
+    print(f"Serial: {serial_id} | Unique: {unique_link}")
 
-    print(f"Serial: {serial_id} | Unique: {unique_code} | Object: {acquisitionObject}")
+    acquisitionObject = Acquisition.objects.get(unique_link=unique_link)
+
+    print(f"Serial: {serial_id} | Unique: {unique_link} | Object: {acquisitionObject}")
 
     if acquisitionObject.status in ["in_progress", "pending", "failed"]:
 
@@ -166,7 +255,7 @@ def get_acquisition_presetup(request, serial_id, unique_code):
             acquisitionObject.status = "in_progress"
             acquisitionObject.save()
 
-        result = physicalAcquisition.delay('physical-acquisition-progress_%s' % serial_id, unique_code)
+        result = physicalAcquisition.delay('acquisition-progress_%s' % unique_link, unique_link)
 
         if result.failed():
             print("Failed ->", result.traceback)
@@ -179,11 +268,11 @@ def get_acquisition_presetup(request, serial_id, unique_code):
         return HttpResponse("Serial ID not found")
 
 @login_required(login_url='caf_login')
-def get_acquisition_setup(request, serial_id, unique_code):
-    isUniqueCode = Acquisition.objects.filter(unique_link=unique_code).exists()
+def get_acquisition_setup(request, serial_id, unique_link):
+    isUniqueCode = Acquisition.objects.filter(unique_link=unique_link).exists()
 
     if ColdForensic().checkSerialID(serial_id) and isUniqueCode:
-        getAcquisitionObject = Acquisition.objects.get(unique_link=unique_code)
+        getAcquisitionObject = Acquisition.objects.get(unique_link=unique_link)
 
         if getAcquisitionObject.status in ["in_progress", "pending", "failed"]:
             return render(request, 'includes/acquisition_progress.html', {'acquisitionObject': getAcquisitionObject})
@@ -193,8 +282,8 @@ def get_acquisition_setup(request, serial_id, unique_code):
     return HttpResponse("Serial ID not found")
 
 @login_required(login_url='caf_login')
-def get_acquisition_save_location(request, serial_id, unique_code):
-    isUniqueCode = Acquisition.objects.filter(unique_link=unique_code).exists()
+def get_acquisition_save_location(request, serial_id, unique_link):
+    isUniqueCode = Acquisition.objects.filter(unique_link=unique_link).exists()
 
     if ColdForensic().checkSerialID(serial_id) and isUniqueCode:
         evidenceList = Evidence.objects.select_related('case').values(
@@ -236,7 +325,7 @@ class EvidenceCreateView(CreateView):
     model = Evidence
     template_name = 'home/evidence_create.html'
     fields = ['evidence_description', 'evidence_status', 'evidence_type', 'case',
-              'evidence_acquired_by', 'evidence_acquired_date']
+              'evidence_acquired_by', 'evidence_acquired_date', 'evidence_number']
 
     def form_valid(self, form):
         form.instance.user = self.request.user
@@ -250,8 +339,8 @@ class EvidenceCreateView(CreateView):
         for date, user, action, detail in zip(coc_dates, coc_users, coc_actions, coc_details):
             chain_of_custody_data.append({
                 'date': date,
-                'user_id': user,
-                'user': User.objects.get(user_id=user).user_name,
+                'id': user,
+                'user': User.objects.get(id=user).user_name,
                 'action': action,
                 'detail': detail
             })
@@ -264,7 +353,7 @@ class EvidenceCreateView(CreateView):
         context = super().get_context_data(**kwargs)
         context['home_case_list'] = Case.objects.all()
         user_list = User.objects.all()
-        context['home_user_list'] = json.dumps(list(user_list.values('user_id', 'user_name')), cls=UUIDEncoder)
+        context['home_user_list'] = json.dumps(list(user_list.values('id', 'user_name')), cls=UUIDEncoder)
         return context
 
     def get_success_url(self):
@@ -283,7 +372,7 @@ class EvidenceUpdateView(UpdateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         user_list = User.objects.all()
-        context['home_user_list'] = json.dumps(list(user_list.values('user_id', 'user_name')), cls=UUIDEncoder)
+        context['home_user_list'] = json.dumps(list(user_list.values('id', 'user_name')), cls=UUIDEncoder)
 
         ChainOfCustodyFormSet = formset_factory(ChainOfCustodyForm, extra=0)
 
@@ -292,7 +381,7 @@ class EvidenceUpdateView(UpdateView):
         else:
             initial_data = self.object.evidence_chain_of_custody
             for data in initial_data:
-                data['user'] = data['user_id']  # Set the initial value for the 'user' field to be the 'user_id'
+                data['user'] = data['id']  # Set the initial value for the 'user' field to be the 'id'
             context['chain_of_custody_formset'] = ChainOfCustodyFormSet(initial=initial_data)
 
         return context
@@ -317,7 +406,7 @@ class EvidenceUpdateView(UpdateView):
                 if chain_of_custody_form.cleaned_data and not chain_of_custody_form.cleaned_data.get('DELETE'):
                     coc_data = {
                         'date': str(chain_of_custody_form.cleaned_data.get('date')),
-                        'user_id': str(chain_of_custody_form.cleaned_data.get('user').user_id),
+                        'id': str(chain_of_custody_form.cleaned_data.get('user').id),
                         'user': chain_of_custody_form.cleaned_data.get('user').user_name,
                         'action': chain_of_custody_form.cleaned_data.get('action'),
                         'detail': chain_of_custody_form.cleaned_data.get('detail')
@@ -402,8 +491,8 @@ class Profiles(View):
 
     def get(self, request):
 
-        getCaseByUser = Case.objects.filter(case_member=request.user.user_id).count()
-        getEvidenceByUser = Evidence.objects.filter(evidence_acquired_by=request.user.user_id).count()
+        getCaseByUser = Case.objects.filter(case_member=request.user.id).count()
+        getEvidenceByUser = Evidence.objects.filter(evidence_acquired_by=request.user.id).count()
 
         context = {
             'getCaseByUser': getCaseByUser,

@@ -33,6 +33,7 @@
             </div>
             <div class="col-12 col-md-6 col-lg-6">
               <div class="card">
+              <div class="card-body">
               <div class="card-header">
                 <h4>Update Evidence</h4>
               </div>
@@ -46,12 +47,16 @@
 
                       <div class="form-group col-md-6">
                           <label for="evidence_acquired_by">Acquired By</label>
+                          <span class="d-inline-block" data-toggle="tooltip"
+                            data-title="List of member from selected case">
+                            <i class="fas fa-question-circle"></i>
+                          </span>
                           {{ form.evidence_acquired_by }}
                       </div>
 
                       <div class="form-group col-md-6">
-                          <label for="evidence_description">Evidence Description</label>
-                          {{ form.evidence_description }}
+                          <label for="evidence_description">Evidence Number</label>
+                          {{ form.evidence_number }}
                       </div>
 
                       <div class="form-group col-md-6">
@@ -76,6 +81,11 @@
                       <div class="form-group col-md-6">
                           <label for="evidence_acquired_date">Acquired Date</label>
                           {{ form.evidence_acquired_date }}
+                      </div>
+                  
+                      <div class="form-group col-md-12">
+                          <label for="evidence_description">Evidence Description</label>
+                          {{ form.evidence_description }}
                       </div>
 
                       <div class="card-header">
@@ -132,6 +142,7 @@
 
                 </div>
               </div>
+              </div>
             </div>
         </div>
     </div>
@@ -154,7 +165,7 @@
             e.preventDefault();
             let userOptions = "";
             for (const user of homeUserList) {
-                userOptions += `<option value="${user.user_id}">${user.user_name}</option>`;
+                userOptions += `<option value="${user.id}">${user.user_name}</option>`;
             }
             const htmlToAdd = `
                 <div class="row">
@@ -246,7 +257,7 @@
             $.getJSON(url, function(members) {
                 let options = '';
                 $.each(members, function(index, member) {
-                    options += '<option value="' + member.user_id + '">' + member.user_name + '</option>';
+                    options += '<option value="' + member.id + '">' + member.user_name + '</option>';
                 });
 
                 $("#evidence_acquired_by").html(options);

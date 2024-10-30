@@ -23,9 +23,9 @@ logger = logging.getLogger(__name__)
 logging.basicConfig(filename="acquisition.log", level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 @shared_task
-def physicalAcquisition(group_name, unique_code):
+def physicalAcquisition(group_name, unique_link):
     channel_layer = get_channel_layer()
-    getAcquisitionObject = Acquisition.objects.get(unique_link=unique_code)
+    getAcquisitionObject = Acquisition.objects.get(unique_link=unique_link)
     forensic_core = ColdForensic()
     request_factory = RequestFactory()
 

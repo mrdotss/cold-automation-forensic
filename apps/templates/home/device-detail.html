@@ -156,6 +156,7 @@
                                         </button>
                                         <button type="button" class="btn btn-icon icon-left btn-secondary screenshot-clear-button" data-device='{{ devices.0.id }}'><i class="fas fa-trash"></i> Clear</button>
                                         <button type="button" id="exportScreenshotBtn" class="btn btn-icon icon-left btn-light" data-device='{{ devices.0.id }}'><i class="fas fa-file-export"></i> Save</button>
+                                        <button type="button" class="btn btn-warning" data-toggle="tooltip" data-placement="top" title="You can click the screenshot image to send a tap directly at the position you clicked."><i class="fas fa-info-circle"></i></button>
                                     </div>
                                 </div>
                                 <div class="card-logcat">
@@ -403,6 +404,7 @@
                   $.ajax({
                     url: '/device/shell/' + device,
                     type: 'POST',
+                    headers: { 'X-CSRFToken': csrftoken },
                     data: JSON.stringify({ 'device': device, 'command': input }),
                     processData: false,
                     contentType: 'application/json',
@@ -421,7 +423,8 @@
 
                 $.ajax({
                   url: '/device/key/' + device,
-                  type: 'POST',
+                  type: 'POST', 
+                  headers: { 'X-CSRFToken': csrftoken },
                   data: JSON.stringify({ 'device': device, 'key': key }),
                   processData: false,
                   dataType: 'text',
@@ -454,6 +457,12 @@
                         img.src = url;
                         img.style.width = '100%';
                         img.style.height = 'auto';
+                        img.id = device + '-screenshot-img'; // Add an ID to the image for reference
+
+                        // Add click event listener to the image
+                        img.addEventListener('click', function(event) {
+                            handleImageClick(event, device);
+                        });
 
                         $('#' + device + '-screenshot').html(img);
 
@@ -476,11 +485,47 @@
                     }
                 });
             });
+
+            function handleImageClick(event, device) {
+                const img = event.target;
+
+                // Get the position of the click relative to the image
+                const rect = img.getBoundingClientRect();
+                const x = event.clientX - rect.left; // x-coordinate relative to the image
+                const y = event.clientY - rect.top;  // y-coordinate relative to the image
+
+                // Send the coordinates to the server to simulate touch
+                simulateTouch(device, x, y, img.naturalWidth, img.naturalHeight, rect.width, rect.height);
+            }
+
+            function simulateTouch(device, x, y, imageWidth, imageHeight, displayedWidth, displayedHeight) {
+                // Map the displayed coordinates to the actual image coordinates
+                const scaleX = imageWidth / displayedWidth;
+                const scaleY = imageHeight / displayedHeight;
+
+                const actualX = Math.round(x * scaleX);
+                const actualY = Math.round(y * scaleY);
+
+                // Send AJAX request to the server to simulate touch
+                $.ajax({
+                    url: '/device/simulate_touch/' + device,
+                    type: 'POST',
+                    headers: { 'X-CSRFToken': csrftoken },
+                    data: JSON.stringify({ x: actualX, y: actualY }),
+                    contentType: 'application/json',
+                    success: function(response) {
+                        console.log('Touch event simulated successfully:', response);
+                    },
+                    error: function(err) {
+                        console.error("Error simulating touch event:", err);
+                    }
+                });
+            }
               
-          $('.screenshot-clear-button').click(function() {
-            var device = $(this).data('device');
-            $('#' + device + '-screenshot').html('');
-          });
+            $('.screenshot-clear-button').click(function() {
+                var device = $(this).data('device');
+                $('#' + device + '-screenshot').html('');
+            });
 
             function getCurrentDateTime() {
                 const now = new Date();
@@ -496,6 +541,7 @@
                   $.ajax({
                     url: '/device/text/' + device,
                     type: 'POST',
+                    headers: { 'X-CSRFToken': csrftoken },
                     data: JSON.stringify({ 'device': device, 'text': input }),
                     processData: false,
                     dataType: 'text',
@@ -510,6 +556,25 @@
                   });
                 }
               });
+
+              function getCookie(name) {
+                let cookieValue = null;
+                if (document.cookie && document.cookie !== '') {
+                    const cookies = document.cookie.split(';');
+                    for (let cookie of cookies) {
+                        cookie = cookie.trim();
+                        // Does this cookie string begin with the name we want?
+                        if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                            break;
+                        }
+                    }
+                }
+                return cookieValue;
+            }
+
+            const csrftoken = getCookie('csrftoken');
+
               },error: (error) => {
                 console.log("Error ->", error);
             }, statusCode: {

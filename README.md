@@ -78,8 +78,10 @@ Also documented [here](https://s3.wasabisys.com/c343765-a/User-Manual/RAAS%20-%2
     ```sh
     cd cold-automation-forensic\
     source venv/bin/activate   # On Windows use `venv\Scripts\activate`
-    celery -A core worker -l info
+    celery -A core worker --concurrency=3 -l info
     ```
+   For the worker, you can adjust the concurrency parameter to your needs. This means that the worker will process 3 tasks concurrently. You can increase or decrease this number based on your system's capabilities.
+
 
 10. **Access the Application**:
     Open your web browser and navigate to `http://127.0.0.1:8000/` to access the RAAS application. Use the superuser account to access the admin interface at `http://127.0.0.1:8000/admin/`.

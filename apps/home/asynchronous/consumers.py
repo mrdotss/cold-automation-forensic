@@ -1,5 +1,4 @@
 from channels.generic.websocket import AsyncWebsocketConsumer
-import uuid
 import json
 from .redis_helper import set_value, delete_value
 
@@ -32,8 +31,8 @@ class ProgressConsumer(AsyncWebsocketConsumer):
         }))
 
     async def connect(self):
-        self.serial_id = self.scope['url_route']['kwargs']['serial_id']
-        self.room_group_name = f'physical-acquisition-progress_{self.serial_id}'
+        self.unique_link = self.scope['url_route']['kwargs']['unique_link']
+        self.room_group_name = f'acquisition-progress_{self.unique_link}'
 
         # Store the connection ID and group name in Redis
         connection_id = self.channel_name

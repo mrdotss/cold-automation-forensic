@@ -325,7 +325,7 @@
 
             function establishWebSocketConnection() {
                 const prefix = (window.location.protocol === 'https:') ? 'wss://' : 'ws://';
-                const ws_url = prefix + window.location.host + '/ws/progress/{{ serial_id }}/physical-acquisition';
+                const ws_url = prefix + window.location.host + '/ws/progress/{{ acquisitionProcess.unique_link }}';
                 const coldSocket = new WebSocket(ws_url);
 
                 var isAcquisitionStarted = false;

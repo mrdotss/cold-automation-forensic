@@ -40,7 +40,7 @@ INSTALLED_APPS = [
     'channels',
     'admin_interface',
     'colorfield',
-    'auditlog',
+    'easyaudit',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -87,6 +87,7 @@ AUTH_USER_MODEL = 'home.User'
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',  # Whitenoise Middleware
+    'easyaudit.middleware.easyaudit.EasyAuditMiddleware', # EasyAudit Middleware
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -94,6 +95,8 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
+
+DJANGO_EASY_AUDIT_WATCH_REQUEST_EVENTS = False
 
 ROOT_URLCONF = 'core.urls'
 TEMPLATE_DIR = os.path.join(CORE_DIR, "apps/templates/")  # ROOT dir for templates

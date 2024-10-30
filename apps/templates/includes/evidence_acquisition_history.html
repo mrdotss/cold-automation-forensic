@@ -1,0 +1,38 @@
+<div class="modal fade" tabindex="-1" role="dialog" id="historyModal-{{ evidence.evidence_id }}">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Acquisition History for Evidence Number: {{ evidence.evidence_number }}</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="row">
+          <div class="col-12">
+            <div class="activities">
+
+                {% for acquisitionHistory in acquisition %}
+                    <div class="activity">
+                        <div class="activity-icon bg-primary text-white shadow-primary">
+                            <i class="fas fa-arrows-alt"></i>
+                        </div>
+                        <div class="activity-detail">
+                            <div class="mb-2">
+                                <span class="text-job">{{ acquisitionHistory.date }}</span>
+                                <span class="bullet"></span>
+                                <a class="text-job" href="#">{{ acquisitionHistory.acquisition_type }} Acquisition</a>
+                            </div>
+                            <p>VIA: {{ acquisitionHistory.connection_type }} | Status: {{ acquisitionHistory.status }}</p>
+                            Size: {{ acquisitionHistory.size }} GB
+                        </div>
+                    </div>
+                {% endfor %}
+
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
