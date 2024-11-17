@@ -12,24 +12,51 @@ cold_forensic_instance = ColdForensic()
 
 def getDevices(request, id):
     if request.method == "GET":
-        if ColdForensic().checkSerialID(id):
-            acquisitionHistory = Acquisition.objects.filter(serial_number=id).exclude(status='pending').order_by('-date')
+        cold_forensic = ColdForensic()
 
+        if cold_forensic.checkSerialID(id):
+            # Determine if the input ID is hashed and, if so, resolve to the serial number
+            isHashedIP = cold_forensic.is_hashed_ip_or_not(id)
+            serial = (
+                cold_forensic.decrypt(id, cold_forensic.secret_key)
+                if isHashedIP and cold_forensic.check_if_hashed_ip(id, cold_forensic.secret_key)
+                else id
+            )
+            serialNumber = (
+                cold_forensic.decode_bytes_property(
+                    cold_forensic.getProp(serial, 'ro.serialno', 'unknown')
+                )
+                if isHashedIP else id
+            )
+
+            # Fetch acquisition history based on serial number
+            acquisitionHistory = (
+                Acquisition.objects.filter(serial_number=serialNumber)
+                .exclude(status='pending')
+                .order_by('-date')
+            )
+
+            # Prepare acquisition history list
             acquisition_history_list = [
                 {
                     'id': acquisition.acquisition_id,
                     'date': acquisition.date,
                     'type': acquisition.acquisition_type,
                     'status': acquisition.status,
-                    'percentage': int(100 * (int(acquisition.physical.total_transferred_bytes) /
-                                             int(acquisition.physical.partition_size * 1024)))
-                    if hasattr(acquisition, 'physical') and acquisition.physical.partition_size else 0
+                    'percentage': int(
+                        100 * (
+                                int(acquisition.physical.total_transferred_bytes) /
+                                (int(acquisition.physical.partition_size) * 1024)
+                        )
+                    ) if hasattr(acquisition, 'physical') and acquisition.physical.partition_size else 0
                 }
                 for acquisition in acquisitionHistory
             ]
 
-            device = cold_forensic_instance.get_devices(request=request, id_or_not=id)
+            # Fetch device details
+            device = cold_forensic.get_devices(request=request, id_or_not=id)
 
+            # Context preparation
             context = {
                 'id': id,
                 'device': device,
@@ -39,7 +66,6 @@ def getDevices(request, id):
             return render(request, 'includes/device_details_more.html', context)
 
     return JsonResponse({'message': 'No device connected'}, status=404)
-
 
 
 def getLogcat(request, id):
