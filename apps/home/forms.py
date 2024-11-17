@@ -44,9 +44,9 @@ class CaseUpdateForm(forms.ModelForm):
         widget=forms.CheckboxInput(
             attrs={
                 "class": "custom-control-input",
-                "id": "customCheck1",
+                "type": "checkbox",
             }
-        ), required=True
+        ), required=False
     )
     case_member = forms.ModelMultipleChoiceField(
         label='case_member',

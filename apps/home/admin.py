@@ -4,8 +4,8 @@ from django.contrib.auth.models import Group
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth.forms import ReadOnlyPasswordHashField
 from django.core.exceptions import ValidationError
-from .models import Case, Evidence, User, Acquisition, PhysicalAcquisition, LogicalAcquisition, FullFileSystemAcquisition
-
+from .models import Case, Evidence, User, Acquisition, PhysicalAcquisition, SelectiveFullFileSystemAcquisition, FullFileSystemAcquisition
+from django.utils import timezone
 
 # Register your models here.
 class UserCreationForm(forms.ModelForm):
@@ -83,9 +83,30 @@ admin.site.register(User, UserAdmin)
 # unregister the Group model from admin.
 admin.site.unregister(Group)
 
-admin.site.register(Case)
-admin.site.register(Evidence)
-admin.site.register(Acquisition)
-admin.site.register(PhysicalAcquisition)
-admin.site.register(LogicalAcquisition)
+class CaseAdmin(admin.ModelAdmin):
+    list_display = ['case_name', 'user__user_name']
+
+
+class EvidenceAdmin(admin.ModelAdmin):
+    list_display = ['evidence_number', 'evidence_description', 'case__case_name']
+
+
+class AcquisitionAdmin(admin.ModelAdmin):
+    list_display = ['acquisition_type', 'status',  'unique_link', 'formatted_date']
+
+    @admin.display(description='Date')
+    def formatted_date(self, obj):
+        # Assuming `date` is a DateTimeField; adjust to local timezone
+        return timezone.localtime(obj.date).strftime('%Y-%m-%d %H:%M:%S')
+
+
+class PhysicalAcquisitionAdmin(admin.ModelAdmin):
+    list_display = ['acquisition_id', 'acquisition__status', 'total_transferred_bytes', 'partition_id', 'partition_size']
+
+
+admin.site.register(Case, CaseAdmin)
+admin.site.register(Evidence, EvidenceAdmin)
+admin.site.register(Acquisition, AcquisitionAdmin)
+admin.site.register(PhysicalAcquisition, PhysicalAcquisitionAdmin)
+admin.site.register(SelectiveFullFileSystemAcquisition)
 admin.site.register(FullFileSystemAcquisition)

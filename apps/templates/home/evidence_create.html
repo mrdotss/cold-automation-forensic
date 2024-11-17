@@ -42,8 +42,8 @@
                       {% csrf_token %}
                       <div class="form-group col-md-6">
                           <label for="case">Select Case</label>
-                          <select class="form-control select2" name="case" id="case">
-                              <option value="Select...">Select...</option>
+                          <select class="form-control select2" name="case" id="case" required>
+                              <option value="">Select...</option>
                               {% for case_list in home_case_list %}
                                   <option value="{{ case_list.case_id }}">{{ case_list.case_name }}</option>
                               {% endfor %}
@@ -56,21 +56,21 @@
                             data-title="List of member from selected case">
                             <i class="fas fa-question-circle"></i>
                           </span>
-                          <select class="form-control" name="evidence_acquired_by" id="evidence_acquired_by">
+                          <select class="form-control" name="evidence_acquired_by" id="evidence_acquired_by" required>
                               <!--- Filled by case form --->
                           </select>
                       </div>
                       <div class="form-group col-md-6">
                           <label for="evidence_number">Evidence Number</label>
                           <input type="text" name="evidence_number" class="form-control" id="evidence_number"
-                                    placeholder="Ex: 001">
+                                    placeholder="Ex: 001" required>
                       </div>
 
                       <div class="form-group col-md-6">
                           <label for="evidence_type">Evidence Type</label>
                           <div class="custom-control custom-radio">
                               <input type="radio" id="evidence_type-1" name="evidence_type" class="custom-control-input"
-                                     value="Physical">
+                                     value="Physical" required>
                               <label class="custom-control-label" for="evidence_type-1">Physical</label>
                           </div>
                           <div class="custom-control custom-radio">
@@ -82,7 +82,7 @@
 
                       <div class="form-group col-md-6">
                           <label for="evidence_status">Status</label>
-                          <select class="form-control selectric" name="evidence_status" id="evidence_status">
+                          <select class="form-control selectric" name="evidence_status" id="evidence_status" required>
                               <option value="Acquired">Acquired</option>
                               <option value="Analyzed">Analyzed</option>
                               <option value="Archived">Archived</option>
@@ -91,13 +91,13 @@
 
                       <div class="form-group col-md-6">
                           <label for="evidence_acquired_date">Acquired Date</label>
-                          <input type="text" name="evidence_acquired_date" class="form-control datepicker" id="evidence_acquired_date">
+                          <input type="text" name="evidence_acquired_date" class="form-control datepicker" id="evidence_acquired_date" required>
                       </div>
 
                       <div class="form-group col-md-12">
                           <label for="evidence_description">Evidence Description</label>
                           <textarea type="text" name="evidence_description" class="form-control" id="evidence_description"
-                                    placeholder="Some description.."></textarea>
+                                    placeholder="Some description.." required></textarea>
                       </div>
 
                       <div class="card-header">

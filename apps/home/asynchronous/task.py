@@ -1,20 +1,14 @@
-import datetime
-import hashlib
-import json
-import logging
-import os
-import subprocess
-import time
+import time, subprocess, os, logging, json, hashlib, random, string
 from datetime import datetime
 from django.test import RequestFactory
+from django.utils import timezone
 
 from asgiref.sync import async_to_sync
 from celery import shared_task
 from channels.layers import get_channel_layer
-from django.core.exceptions import ObjectDoesNotExist
 
 from apps.caf.cold_action import adb_instance
-from apps.home.models import Acquisition, PhysicalAcquisition
+from apps.home.models import Acquisition, SelectiveFullFileSystemAcquisition
 from core.celery import app
 from apps.caf.ColdForensic import ColdForensic
 
@@ -31,6 +25,7 @@ def physicalAcquisition(group_name, unique_link):
 
     IP = getAcquisitionObject.client_ip
     PORT_CLIENT = getAcquisitionObject.port
+
     LOCATION = getAcquisitionObject.full_path
     FILE_NAME = getAcquisitionObject.file_name
     PARTITION = getAcquisitionObject.physical.partition_id
@@ -48,7 +43,7 @@ def physicalAcquisition(group_name, unique_link):
             group_name,
             {
                 'type': 'acquisition_error',
-                'message': 'Failed to set up busybox on the device.',
+                'message': 'Failed to set up busybox on the device',
             }
         )
         return
@@ -69,7 +64,7 @@ def physicalAcquisition(group_name, unique_link):
                     group_name,
                     {
                         'type': 'acquisition_error',
-                        'message': 'Failed to set up adb port forwarding.',
+                        'message': 'Failed to set up adb port forwarding',
                     }
                 )
                 return
@@ -90,52 +85,85 @@ def physicalAcquisition(group_name, unique_link):
                     group_name,
                     {
                         'type': 'acquisition_error',
-                        'message': 'Failed to find an available port on the device for netcat.',
+                        'message': 'Failed to find an available port on the device for netcat',
                     }
                 )
                 return
 
-        if getAcquisitionObject.physical.is_verify_first:
-            try:
-                # Start time for the acquisition
-                acquisition_start_time = datetime.now()
-                getAcquisitionObject.physical.start_time = acquisition_start_time
-                getAcquisitionObject.physical.save()
+        # Check if we need to hash before acquisition
+        if getAcquisitionObject.physical.is_verify_first and not getAcquisitionObject.physical.hash_before_acquisition:
+            # Start time for the acquisition
+            acquisition_start_time = datetime.now()
+            getAcquisitionObject.physical.start_time = acquisition_start_time
+            getAcquisitionObject.physical.save()
 
-                time.sleep(5)
-                # Send a message to the client
-                async_to_sync(channel_layer.group_send)(
-                    group_name,
-                    {
-                        'type': 'update_progress',
-                        'message': 'Please wait, hashing the partition from the device before acquisition...',
-                    }
-                )
+            time.sleep(10)
+            # Send a message to the client
+            async_to_sync(channel_layer.group_send)(
+                group_name,
+                {
+                    'type': 'update_progress',
+                    'message': 'Please wait, hashing the partition from the device before acquisition...',
+                }
+            )
 
-                hashOutput = forensic_core.hashPartition(serial_id=SERIAL_ID, partition_id=PARTITION) if not getAcquisitionObject.physical.hash_before_acquisition else getAcquisitionObject.physical.hash_before_acquisition
-                getAcquisitionObject.physical.hash_before_acquisition = hashOutput
-                getAcquisitionObject.physical.save()
+            hash_result = ""
+            dd_command = '/data/local/busybox dd'
+            hashOutput = f"adb -s {SERIAL_ID} shell \"su 0 -c '{dd_command} if=/dev/block/{PARTITION} | sha256sum'\""
+            hashProcess = subprocess.Popen(hashOutput, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
-                async_to_sync(channel_layer.group_send)(
-                    group_name,
-                    {
-                        'type': 'update_progress',
-                        'message': 'Hashing done, now starting acquisition...',
-                    }
-                )
-            except Exception as e:
+            while hashProcess.poll() is None:
+                getAcquisitionObject.refresh_from_db()
+                if getAcquisitionObject.status == 'cancelled':
+                    print(f'Cancelling hashing for {PARTITION}')
+                    terminate_process(hashProcess)
+                    time.sleep(2) # Allow a moment for termination
+                    print(f'Hashing cancelled for {PARTITION}')
 
-                getAcquisitionObject.status = 'failed'
-                getAcquisitionObject.save()
+                    # Clean up adb forwarding if USB connection
+                    if is_usb_connection:
+                        adb_instance.adb_forward_remove(local_port, device=SERIAL_ID)
 
-                async_to_sync(channel_layer.group_send)(
-                    group_name,
-                    {
-                        'type': 'acquisition_error',
-                        'message': f'Hashing failed: {str(e)}',
-                    }
-                )
-                return
+                    async_to_sync(channel_layer.group_send)(
+                        group_name,
+                        {
+                            'type': 'acquisition_cancelled',
+                            'message': 'Acquisition has been cancelled',
+                        }
+                    )
+
+                    break
+
+                time.sleep(1)
+
+            # Read the output and error (if any)
+            stdout, stderr = hashProcess.communicate()
+
+            # Check for errors or get the hash result
+            if hashProcess.returncode == 0 and stdout:
+                # Decode and clean up the hash result if output exists
+                hash_result = stdout.decode().strip().split()[0]
+                print("Hash Result:", hash_result)
+            else:
+                # Handle empty stdout or errors appropriately
+                if not stdout:
+                    print("Hashing process was cancelled or no output was generated.")
+                    return
+                else:
+                    print("Error:", stderr.decode().strip())
+                    return
+
+            # Save the result, handling a case where hash_result might be empty
+            getAcquisitionObject.physical.hash_before_acquisition = hash_result
+            getAcquisitionObject.physical.save()
+
+            async_to_sync(channel_layer.group_send)(
+                group_name,
+                {
+                    'type': 'update_progress',
+                    'message': 'Hashing done, now starting acquisition...',
+                }
+            )
 
         time.sleep(2)
 
@@ -197,8 +225,35 @@ def physicalAcquisition(group_name, unique_link):
         logging.basicConfig(filename="file.log", level=logging.INFO, format='%(asctime=s - %(message=s')
 
         while True:
+
+            # Refresh the object to get the latest `status` value
+            getAcquisitionObject.refresh_from_db()
+            if getAcquisitionObject.status == 'cancelled':
+
+                # Update the total transferred bytes
+                getAcquisitionObject.physical.total_transferred_bytes = os.path.getsize(f'{LOCATION}/{FILE_NAME}')
+                getAcquisitionObject.physical.save()
+
+                time.sleep(2)
+
+                # Perform cancellation steps
+                terminate_process(server_process)
+                terminate_process(android_process)
+
+                # Clean up adb forwarding if USB connection
+                if is_usb_connection:
+                    adb_instance.adb_forward_remove(local_port, device=SERIAL_ID)
+
+                async_to_sync(channel_layer.group_send)(
+                    group_name,
+                    {
+                        'type': 'acquisition_cancelled',
+                        'message': 'Acquisition has been cancelled',
+                    }
+                )
+                break  # Exit the loop
+
             current_time = time.time()
-            elapsed_time = current_time - start_time
             time_since_last_check = current_time - last_time
 
             file_size = os.path.getsize(f'{LOCATION}/{FILE_NAME}')
@@ -292,37 +347,36 @@ def physicalAcquisition(group_name, unique_link):
 
                     # Create a mock request for internal call
                     mock_request = request_factory.get(f'/get_devices/{getAcquisitionObject.device_id}')
-                    device_info_response = forensic_core.get_devices(mock_request, getAcquisitionObject.device_id)
-                    device_info = json.loads(device_info_response.content)[0]
+                    device_info = forensic_core.get_devices(mock_request, getAcquisitionObject.device_id)
 
                     # Format the device info properly
                     evidence_info = f"""
 Evidence Information:
-- ID: {device_info.get('id')}
-- Serial: {device_info.get('serial')}
-- WiFi: {device_info.get('isWiFi')}
-- Manufacturer: {device_info.get('manufacturer')}
-- Model: {device_info.get('model')}
-- SDK: {device_info.get('sdk')}
-- IP: {device_info.get('IP')}
-- Timezone: {device_info.get('timezone')}
-- Product: {device_info.get('product')}
-- Security Patch: {device_info.get('security_patch')}
-- API Level: {device_info.get('api_level')}
-- SELinux: {device_info.get('SELinux')}
-- Android ID: {device_info.get('AndroidID')}
-- Operator: {device_info.get('operator')}
-- IMEI: {device_info.get('IMEI')}
+- ID: {device_info.id}
+- Serial: {device_info.serial}
+- WiFi: {device_info.isWiFi}
+- Manufacturer: {device_info.manufacturer}
+- Model: {device_info.model}
+- SDK: {device_info.sdk}
+- IP: {device_info.IP}
+- Timezone: {device_info.timezone}
+- Product: {device_info.product}
+- Security Patch: {device_info.security_patch}
+- API Level: {device_info.api_level}
+- SELinux: {device_info.SELinux}
+- Android ID: {device_info.AndroidID}
+- Operator: {device_info.operator}
+- IMEI: {device_info.IMEI}
 - Network:
-  - SSID: {device_info['network'].get('ssid')}
-  - Connected: {device_info['network'].get('connected')}
+  - SSID: {device_info.network.ssid}
+  - Connected: {device_info.network.connected}
 - Battery:
-  - Level: {device_info['battery'].get('level')}
-  - Status: {device_info['battery'].get('status')}
-  - Plugged: {device_info['battery'].get('plugged')}
+  - Level: {device_info.battery.level}
+  - Status: {device_info.battery.status}
+  - Plugged: {device_info.battery.plugged}
 - Screen:
-  - Resolution: {device_info['screen'].get('resolution')}
-  - Density: {device_info['screen'].get('density')}"""
+  - Resolution: {device_info.screen['width']}x{device_info.screen['height']}
+  - Density: {device_info.screen['density']}"""
 
                     report_content = f"""Acquisition Report
 ==================
@@ -425,10 +479,216 @@ Verification:
             group_name,
             {
                 'type': 'acquisition_error',
-                'message': 'Acquisition interrupted by user.',
+                'message': 'Acquisition interrupted by user',
             }
         )
         return
+
+@shared_task
+def selectiveFfsAcquisition(group_name, unique_link):
+    channel_layer = get_channel_layer()
+    getAcquisitionObject = Acquisition.objects.get(unique_link=unique_link)
+    forensic_core = ColdForensic()
+    request_factory = RequestFactory()
+
+    package_names = getAcquisitionObject.selective_full_file_system.selected_applications
+    IP = getAcquisitionObject.client_ip
+    LOCATION = getAcquisitionObject.full_path
+    BRIDGE = getAcquisitionObject.connection_type
+
+    is_usb_connection = BRIDGE.lower() == 'usb'
+    is_wifi_connection = BRIDGE.lower() == 'wifi'
+
+    SERIAL_ID = getAcquisitionObject.device_id
+    if forensic_core.is_hashed_ip_or_not(getAcquisitionObject.device_id):
+        SERIAL_ID = forensic_core.decrypt(getAcquisitionObject.device_id, forensic_core.secret_key)
+
+    # Ensure busybox is set up on the device
+    busybox_installed = forensic_core.setupBusybox(SERIAL_ID)
+    if not busybox_installed:
+        async_to_sync(channel_layer.group_send)(
+            group_name,
+            {
+                'type': 'acquisition_error',
+                'message': 'Failed to set up busybox on the device',
+            }
+        )
+        return
+
+    # Initialize the Selective FFS Acquisition object
+    try:
+        selective_ffs = getAcquisitionObject.selective_full_file_system
+        selective_ffs.start_time = timezone.now()
+        selective_ffs.save()
+    except SelectiveFullFileSystemAcquisition.DoesNotExist:
+        selective_ffs = SelectiveFullFileSystemAcquisition(acquisition=getAcquisitionObject)
+        selective_ffs.selected_applications = package_names
+        selective_ffs.start_time = timezone.now()
+        selective_ffs.save()
+
+    # Prepare for acquisition
+    PORT_SERVER = 5252  # Fixed port on the device
+
+    # Set up ADB port forwarding or use device IP
+    if is_usb_connection:
+        local_port = adb_instance.adb_forward_generator(device=SERIAL_ID, remote_port=PORT_SERVER)
+        if local_port is None:
+            async_to_sync(channel_layer.group_send)(
+                group_name,
+                {
+                    'type': 'acquisition_error',
+                    'message': 'Failed to set up adb port forwarding',
+                }
+            )
+            return
+        IP = '127.0.0.1'
+        PORT_CLIENT = local_port
+    elif is_wifi_connection:
+        device_port = adb_instance.device_port_generator(device=SERIAL_ID) if not getAcquisitionObject.port else ""
+        getAcquisitionObject.port = device_port if device_port != "" else getAcquisitionObject.port
+        getAcquisitionObject.save()
+
+        PORT_CLIENT = getAcquisitionObject.port
+        PORT_SERVER = getAcquisitionObject.port
+
+        if device_port is None:
+            async_to_sync(channel_layer.group_send)(
+                group_name,
+                {
+                    'type': 'acquisition_error',
+                    'message': 'Failed to find an available port on the device for netcat',
+                }
+            )
+            return
+
+    else:
+        async_to_sync(channel_layer.group_send)(
+            group_name,
+            {
+                'type': 'acquisition_error',
+                'message': 'Invalid connection type',
+            }
+        )
+        return
+
+    # Start acquisition
+    try:
+        time.sleep(5)
+        # Ensure package_names is a list
+        if isinstance(package_names, str):
+            package_names = [package_names]
+
+        hash_result = []
+
+        total_packages = len(package_names)
+        for index, package_name in enumerate(package_names, start=1):
+            acquisition_target = package_name
+            file_name = f"{package_name}_backup.tar.gz"
+            destination_path = os.path.join(LOCATION, file_name)
+
+            async_to_sync(channel_layer.group_send)(
+                group_name,
+                {
+                    'type': 'update_progress',
+                    'message': f'Acquiring ({index}/{total_packages}): {acquisition_target}',
+                }
+            )
+
+            nc_command = '/data/local/busybox nc'
+            device_command = f"tar -czf - -C /data/data {package_name}"
+
+            # Start the device command using subprocess.Popen
+            adb_shell_command = f"adb -s {SERIAL_ID} shell \"su 0 -c '{device_command} | {nc_command} -l -p {PORT_SERVER}'\""
+            device_process = subprocess.Popen(adb_shell_command, shell=True)
+            time.sleep(2)  # Give the device time to start listening
+            print(f'Device Command: {adb_shell_command}')
+
+            # Start the host command to connect to the device's netcat listener
+            host_command = f'netcat -d {IP} {PORT_CLIENT} > {destination_path}'
+            host_process = subprocess.Popen(host_command, shell=True)
+            print(f'Host Command: {host_command}')
+
+            while device_process.poll() != None and host_process.poll() != None:
+                time.sleep(2)  # Give the host process time to start
+
+                # Verify that the file was created and is not empty
+                if not os.path.exists(destination_path) or os.path.getsize(destination_path) == 0:
+                    async_to_sync(channel_layer.group_send)(
+                        group_name,
+                        {
+                            'type': 'acquisition_error',
+                            'message': f'Failed to acquire {package_name}: File is empty',
+                        }
+                    )
+                    continue  # Proceed to the next package
+
+            async_to_sync(channel_layer.group_send)(
+                group_name,
+                {
+                    'type': 'update_progress',
+                    'message': f'Hashing ({index}/{total_packages}): {acquisition_target}',
+                }
+            )
+
+            time.sleep(1)
+
+            # Calculate hash of the acquired file
+            file_hash = compute_sha256_hash(destination_path)
+            print(f"Acquired {package_name} with hash {file_hash}")
+
+            hash_result.append({
+                'package_name': package_name,
+                'file_hash': file_hash
+            })
+
+            async_to_sync(channel_layer.group_send)(
+                group_name,
+                {
+                    'type': 'update_progress',
+                    'message': f'Completed ({index}/{total_packages}): {acquisition_target}',
+                }
+            )
+
+            time.sleep(2)
+
+        # Acquisition completed
+        selective_ffs.end_time = timezone.now()
+        selective_ffs.hash_result = hash_result
+        selective_ffs.save()
+
+        getAcquisitionObject.status = 'completed'
+        getAcquisitionObject.last_active = timezone.now()
+        getAcquisitionObject.save()
+
+        # Clean up ADB port forwarding if USB connection
+        if is_usb_connection:
+            adb_instance.adb_forward_remove(local_port, device=SERIAL_ID)
+
+        async_to_sync(channel_layer.group_send)(
+            group_name,
+            {
+                'type': 'acquisition_completed',
+                'message': 'Selective FFS Acquisition Completed',
+            }
+        )
+
+    except Exception as e:
+        logging.error(f"Error during selective FFS acquisition: {e}")
+        getAcquisitionObject.status = 'failed'
+        getAcquisitionObject.save()
+
+        # Clean up ADB port forwarding if USB connection
+        if is_usb_connection:
+            adb_instance.adb_forward_remove(local_port, device=SERIAL_ID)
+
+        async_to_sync(channel_layer.group_send)(
+            group_name,
+            {
+                'type': 'acquisition_error',
+                'message': f"Error: {str(e)}",
+            }
+        )
+
 
 
 def terminate_process(process):

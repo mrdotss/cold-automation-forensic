@@ -6,6 +6,7 @@ import base64
 import time
 import re, os
 import logging
+from apps.home.models import Acquisition
 
 class ColdForensic:
     def __init__(self):
@@ -249,12 +250,12 @@ class ColdForensic:
                     if len(density_info) == 2 and density_info[1].strip().isdigit():
                         screen['density'] = int(density_info[1].strip())
 
+            print(f"Screen Info: {screen}")
+            return screen
+
         except Exception as e:
             print("Failed to parse screen info:", e)
             return None
-
-        print(f"Screen Info: {screen}")
-        return screen
 
     # Get Battery
     def getBattery(self, device):
@@ -356,7 +357,6 @@ class ColdForensic:
         if request.method == 'GET':
 
             start_time = time.time()
-            devices = []
             listDevices = self.get_list_of_devices()
             id = None
             for device in listDevices:
@@ -407,14 +407,11 @@ class ColdForensic:
             if self.isWiFi(id):
                 device_props.IP = id.split(':')[0]
 
-            devices.append(dataclasses.asdict(device_props))
-
-            if len(devices) == 0:
-                return JsonResponse({'message': 'No device connected'}, status=404)
-
             print("---Total Time: %s seconds ---" % (time.time() - start_time))
 
-            return JsonResponse(devices, safe=False, status=200)
+            # Return device_props as object without json
+            return device_props
+
 
     def checkSerialID(self, serial_id):
         listDevices = self.get_list_of_devices()

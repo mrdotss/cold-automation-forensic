@@ -4,6 +4,9 @@ from apps.caf.ADBCore import ADBCore
 from django.test import TestCase
 import logging
 import os, time
+import socket
+import threading
+import psutil
 
 logger = logging.getLogger(__name__)
 
@@ -81,3 +84,4 @@ logger = logging.getLogger(__name__)
 #         else:
 #             print("No adb forwards found.")
 #         self.assertEqual(len(forwards), 0, "Adb forward list should be empty after removing all forwards.")
+

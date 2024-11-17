@@ -1,6 +1,7 @@
 {% extends 'layouts/base.html' %}
+{% load custom_filters %}
 
-{% block title %} Device {% endblock title %}
+{% block title %} Physical Acquisition {% endblock title %}
 
 <!-- Specific CSS goes HERE -->
 {% block stylesheets %}
@@ -20,7 +21,7 @@
 
 {% block content %}
     <div class="section-header">
-        <h1>Lab</h1>
+        <h1>Acquisition Setup</h1>
         &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
         <div id="showBridge">
         </div>
@@ -78,7 +79,7 @@
                             </tr>
                           </thead>
                           <tbody>
-                          {% for acquisition in acquisitionHistory %}
+                          {% for acquisition, percentage in acquisitionHistory %}
                             <tr>
                               <th scope="row">{{ forloop.counter }}</th>
                               <td>
@@ -90,17 +91,19 @@
                               <td>{{ acquisition.physical.partition_size }}</td>
                               <td>
                                   {% if acquisition.status == "pending" %}
-                                    <div class="badge badge-warning">Pending</div>
+                                    <div class="badge badge-warning">{{ percentage.percentage }}% Pending</div>
                                   {% elif acquisition.status == "in_progress" %}
-                                    <div class="badge badge-primary">Progress</div>
+                                    <div class="badge badge-primary">{{ percentage.percentage }}% Progress</div>
                                   {% elif acquisition.status == "completed" %}
-                                    <div class="badge badge-success">Completed</div>
+                                    <div class="badge badge-success">{{ percentage.percentage }}% Completed</div>
+                                  {% elif acquisition.status == "cancelled" %}
+                                    <div class="badge badge-dark">{{ percentage.percentage }}% Cancelled</div>
                                   {% elif acquisition.status == "paused" %}
-                                    <div class="badge badge-info">Paused</div>
+                                    <div class="badge badge-info">{{ percentage.percentage }}% Paused</div>
                                   {% elif acquisition.status == "error" %}
-                                    <div class="badge badge-danger">Error</div>
+                                    <div class="badge badge-danger">{{ percentage.percentage }}% Error</div>
                                   {% elif acquisition.status == "failed" %}
-                                    <div class="badge badge-light">Failed</div>
+                                    <div class="badge badge-light">{{ percentage.percentage }}% Failed</div>
                                   {% endif %}
                               </td>
                               <td>{{ acquisition.date }}</td>
@@ -183,7 +186,6 @@
 
     <script>
         $(document).ready(function() {
-            const $acquisitionBtn = $('#acquisition-btn');
             const $tableContainer  = $('.card-1st'); // This is an example element for your acquisition setup
             const $checkbox = $('#gridCheck');
             
@@ -191,7 +193,7 @@
             const acquisitionStatus = '{{ acquisitionProcess.status }}';
             const transferredBytes = '{{ acquisitionProcess.physical.total_transferred_bytes }}';
             
-            if (acquisitionStatus === 'in_progress' || acquisitionStatus === 'failed' || transferredBytes > 0) {
+            if (acquisitionStatus === 'in_progress' || acquisitionStatus === 'failed' || acquisitionStatus === 'cancelled' || transferredBytes > 0) {
                 establishWebSocketConnection();
             }
 
@@ -204,6 +206,18 @@
                 let connectionID;
 
                 coldSocket.onmessage = function(e) {
+                    
+                    // Cancel acquisition button
+                    $(document).on('click', '#cancel-acquisition-btn', function() {
+                        coldSocket.send(JSON.stringify({
+                            'type': 'cancel_acquisition',
+                            'unique_link': "{{ acquisitionProcess.unique_link|to_str }}",
+                        }));
+
+                        // disable the button
+                        $(this).removeClass('btn-danger').addClass('btn-danger disabled')
+                    });
+                    
                     const data = JSON.parse(e.data);
                     console.log('Data:', data);
 
@@ -278,11 +292,22 @@
                             }, 2000);
                             break;
                         
+                        case "acquisition_cancelled":
+                            console.log("Current state:", data['type']);
+                            connectionID = data['connection_id'];
+
+                            $("#cancel-acquisition-btn").removeClass('btn-danger').removeClass('btn-progress').addClass('btn-light disabled').html(`<i class="fas fa-times"></i>  Cancelled`)
+                            
+                            break;
+
                         case "acquisition_completed":
                             console.log("Current state:", data['type']);
                             connectionID = data['connection_id'];
                             const progressBar = document.getElementById("progressBar");
                             progressBar.classList.remove("bg-success", "progress-bar-animated", "progress-bar-striped");
+
+                            $("#cancel-acquisition-btn").removeClass('btn-danger').addClass('btn-light disabled').html(`<i class="fas fa-times"></i>  Cancelled`)
+                            
                             break;
                     }
                 };
@@ -303,6 +328,14 @@
                 console.log("fetchNewProgress called");
                 $.get('/acquisition-setup/{{ serial_id }}/progress/{{ acquisitionProcess.unique_link }}', function(data) {
                     $('.acquisition-body').fadeIn().html(data);
+                    
+                    // Initialize the cancel button after the HTML is added
+                    let $cancelAcquisitionBtn;
+                    $cancelAcquisitionBtn = $('#cancel-acquisition-btn');
+                    $cancelAcquisitionBtn.on('click', function() {
+                        console.log("Cancel button clicked");
+                        $(this).addClass('btn-progress');
+                    });
                 });
             }
 

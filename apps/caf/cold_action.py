@@ -1,15 +1,45 @@
-from django.http import JsonResponse, HttpResponse
+from django.http import JsonResponse, HttpResponse, Http404
+from django.shortcuts import render
 from .ColdForensic import ColdForensic
 from .ADBCore import ADBCore
-import json, re, logging
-
+import json, re, logging, os
+from apps.home.models import Acquisition
 
 logger = logging.getLogger(__name__)
 adb_instance = ADBCore()
 cold_forensic_instance = ColdForensic()
 
+
 def getDevices(request, id):
-    return cold_forensic_instance.get_devices(request=request, id_or_not=id)
+    if request.method == "GET":
+        if ColdForensic().checkSerialID(id):
+            acquisitionHistory = Acquisition.objects.filter(serial_number=id).exclude(status='pending').order_by('-date')
+
+            acquisition_history_list = [
+                {
+                    'id': acquisition.acquisition_id,
+                    'date': acquisition.date,
+                    'type': acquisition.acquisition_type,
+                    'status': acquisition.status,
+                    'percentage': int(100 * (int(acquisition.physical.total_transferred_bytes) /
+                                             int(acquisition.physical.partition_size * 1024)))
+                    if hasattr(acquisition, 'physical') and acquisition.physical.partition_size else 0
+                }
+                for acquisition in acquisitionHistory
+            ]
+
+            device = cold_forensic_instance.get_devices(request=request, id_or_not=id)
+
+            context = {
+                'id': id,
+                'device': device,
+                'acquisitionHistory': acquisition_history_list
+            }
+
+            return render(request, 'includes/device_details_more.html', context)
+
+    return JsonResponse({'message': 'No device connected'}, status=404)
+
 
 
 def getLogcat(request, id):
@@ -46,7 +76,7 @@ def postKey(request, id):
                     logger.error(f"ADB command failed with error: {err}")
                     return JsonResponse({'error': err})
 
-            return JsonResponse({'result': 'OK'})
+            return JsonResponse({'resuAlt': 'OK'})
         except json.JSONDecodeError as e:
             logger.error(f"JSON decode error: {str(e)}")
             return JsonResponse({'error': 'Invalid JSON'}, status=400)
@@ -82,6 +112,8 @@ def postShell(request, id):
     if request.method == "POST":
         payload = json.loads(request.body.decode())  # Ensure decoding for compatibility
         device = id
+        out = ""  # Initialize 'out' to avoid undefined variable error
+
         if 'device' in payload and 'command' in payload:
             if len(id) > 15 and cold_forensic_instance.checkSerialID(id):
                 device = cold_forensic_instance.decrypt(id, cold_forensic_instance.secret_key)
@@ -97,6 +129,8 @@ def postShell(request, id):
                 return HttpResponse(err)
 
         return HttpResponse(out)
+
+    return HttpResponse("Invalid request method", status=405)
 
 
 def getScreenshot(request, id):

@@ -26,3 +26,8 @@ def image_exists(image_name):
         return image_name
 
     return 'default'
+
+@register.filter
+def to_str(value):
+    """converts int to string"""
+    return str(value)

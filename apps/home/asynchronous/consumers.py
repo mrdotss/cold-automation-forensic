@@ -1,6 +1,24 @@
 from channels.generic.websocket import AsyncWebsocketConsumer
-import json
+from asgiref.sync import sync_to_async
 from .redis_helper import set_value, delete_value
+import json
+
+# Define this function in an appropriate module or within the consumer class
+def handle_cancel_acquisition(unique_link):
+    from apps.home.models import Acquisition
+
+    try:
+        acquisition = Acquisition.objects.get(unique_link=unique_link)
+    except Acquisition.DoesNotExist:
+        return {'error': 'Acquisition not found.'}
+
+    acquisition.status = 'cancelled'
+    acquisition.save()  # This will trigger the signals in a synchronous context
+
+    print(f'Acquisition {unique_link} has been cancelled.')
+
+    return {'success': True}
+
 
 class ProgressConsumer(AsyncWebsocketConsumer):
 
@@ -17,6 +35,41 @@ class ProgressConsumer(AsyncWebsocketConsumer):
             'message': event.get('message', 'An unknown error occurred during acquisition.')
         }))
 
+    async def cancel_acquisition(self, event):
+        """
+        Handles the cancellation request from the client.
+        """
+
+        unique_link = event.get('unique_link', None)
+        if unique_link is None:
+            await self.send(text_data=json.dumps({
+                'type': 'cancel_acquisition',
+                'message': 'Unique link not provided.'
+            }))
+            return
+
+        result = await sync_to_async(handle_cancel_acquisition)(unique_link)
+
+        if 'error' in result:
+            await self.send(text_data=json.dumps({
+                'type': 'error',
+                'message': result['error']
+            }))
+            return
+
+        await self.send(text_data=json.dumps({
+            'type': 'cancel_acquisition',
+            'message': event.get('message', 'Cancellation request received, please wait...')
+        }))
+
+    async def acquisition_cancelled(self, event):
+        message = event.get('message', 'Acquisition has been cancelled')
+        await self.send(text_data=json.dumps({
+            'type': 'acquisition_cancelled',
+            'message': message
+        }))
+
+    # New method to handle acquisition_completed messages
     async def acquisition_completed(self, event):
         """
         Sends an acquisition completed message to the WebSocket.
@@ -109,3 +162,6 @@ class ProgressConsumer(AsyncWebsocketConsumer):
 
         if message_type == 'acquisition_completed':
             await self.acquisition_completed(text_data_json)
+
+        if message_type == 'cancel_acquisition':
+            await self.cancel_acquisition(text_data_json)

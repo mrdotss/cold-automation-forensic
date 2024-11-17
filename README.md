@@ -95,11 +95,12 @@ Stay tuned for more features that will be released next year. These features wil
 
 ## Todo List
 - [x] Physical Acquisition (USB & Wireless)
-- [ ] Logical Acquisition (40%)
+- [ ] Logical Acquisition
 - [ ] Full File System Acquisition
+- [x] Selective Full File System Acquisition [BETA] (USB & Wireless)
 - [ ] Reporting System
-- [ ] Improvement for Log Management
-- [ ] Improvement for Case Management and Evidence Management
+- [ ] Improvement for Log Management (70%)
+- [x] Improvement for Case Management and Evidence Management
 - [ ] Enhancement for Security (Endless)
  
 ## License

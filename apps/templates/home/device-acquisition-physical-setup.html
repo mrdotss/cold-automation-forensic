@@ -1,4 +1,5 @@
 {% extends 'layouts/base.html' %}
+{% load custom_filters %}
 
 {% block title %} Physical Acquisition {% endblock title %}
 
@@ -123,7 +124,7 @@
                             </tr>
                           </thead>
                           <tbody>
-                          {% for acquisition in acquisitionHistory %}
+                          {% for acquisition, percentage in acquisitionHistory %}
                             <tr>
                               <th scope="row">{{ forloop.counter }}</th>
                               <td>
@@ -135,17 +136,19 @@
                               <td>{{ acquisition.physical.partition_size }}</td>
                               <td>
                                   {% if acquisition.status == "pending" %}
-                                    <div class="badge badge-warning">Pending</div>
+                                    <div class="badge badge-warning">{{ percentage.percentage }}% Pending</div>
                                   {% elif acquisition.status == "in_progress" %}
-                                    <div class="badge badge-primary">Progress</div>
+                                    <div class="badge badge-primary">{{ percentage.percentage }}% Progress</div>
                                   {% elif acquisition.status == "completed" %}
-                                    <div class="badge badge-success">Completed</div>
+                                    <div class="badge badge-success">{{ percentage.percentage }}% Completed</div>
+                                  {% elif acquisition.status == "cancelled" %}
+                                    <div class="badge badge-dark">{{ percentage.percentage }}% Cancelled</div>
                                   {% elif acquisition.status == "paused" %}
-                                    <div class="badge badge-info">Paused</div>
+                                    <div class="badge badge-info">{{ percentage.percentage }}% Paused</div>
                                   {% elif acquisition.status == "error" %}
-                                    <div class="badge badge-danger">Error</div>
+                                    <div class="badge badge-danger">{{ percentage.percentage }}% Error</div>
                                   {% elif acquisition.status == "failed" %}
-                                    <div class="badge badge-light">Failed</div>
+                                    <div class="badge badge-light">{{ percentage.percentage }}% Failed</div>
                                   {% endif %}
                               </td>
                               <td>{{ acquisition.date }}</td>
@@ -154,7 +157,7 @@
                                      data-title="Show the process"><i class="fas fa-eye"></i></a>
                                   {% if  acquisition.full_path %}
                                       <button class="btn btn-icon btn-warning" data-toggle="modal"
-                                     data-target="#filePathModal-{{ acquisition.id }}">
+                                     data-target="#filePathModal-{{ acquisition.acquisition_id }}">
                                       <i class="fas fa-folder" data-toggle="tooltip" data-title="More details"></i></button>
                                   {% else %}
                                         <button class="btn btn-icon btn-warning disabled" data-toggle="tooltip" data-title="Not found">
@@ -181,11 +184,11 @@
 {% block modalstuff %}
     {% for acquisition in acquisitionHistory %}
         {% if acquisition.full_path %}
-            <div class="modal fade" tabindex="-1" role="dialog" id="filePathModal-{{ acquisition.id }}">
+            <div class="modal fade" tabindex="-1" role="dialog" id="filePathModal-{{ acquisition.acquisition_id }}">
               <div class="modal-dialog modal-dialog-centered" role="document"  style="width: 600px; max-width: 90%;">
                 <div class="modal-content">
                   <div class="modal-header">
-                    <h5 class="modal-title">Detail ID of {{ acquisition.id }}</h5>
+                    <h5 class="modal-title">Detail ID of {{ acquisition.acquisition_id }}</h5>
                     <button type="button" class="close" data-dismiss="modal" aria-label="Close">
                       <span aria-hidden="true">&times;</span>
                     </button>
@@ -193,11 +196,14 @@
                   <div class="modal-body">
                     <p>
                         <strong>Path</strong>: {{ acquisition.full_path }}/{{ acquisition.file_name }}<br>
-                        <strong>Original Hash SHA256</strong>: {{ acquisition.physical.hash_before_acquisition }}
+                        <strong>Original Hash SHA256</strong>: {{ acquisition.physical.hash_before_acquisition }}<br>
                         <strong>Result Hash SHA256</strong>: {{ acquisition.physical.hash_after_acquisition }}
                     </p>
                   </div>
                   <div class="modal-footer bg-whitesmoke br">
+                      <div class="mr-auto">
+                          <p>For security reason, we can't redirect you to open folder path</p>
+                      </div>
                     <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
                   </div>
                 </div>
@@ -259,7 +265,7 @@
     <script>
         $(document).ready(function() {
             const $acquisitionBtn = $('#acquisition-btn');
-            const $tableContainer  = $('.card-1st'); // This is an example element for your acquisition setup
+            const $tableContainer  = $('.card-1st');
             const $checkbox = $('#gridCheck');
             
             // Check acquisition status on load
@@ -276,6 +282,7 @@
                 console.log('Checkbox checked:', isChecked);
             });
 
+            // Event listener for the acquisition button
             $acquisitionBtn.on('click', function() {
 
                 // Fade out the table
@@ -290,6 +297,7 @@
                         // Start the WebSocket connection
                         $('#location-form').on('submit', function(e){
                             const form = $(this);
+                            
                             const isChecked = $checkbox.is(':checked');
                             const checkboxValue = isChecked ? 'true' : 'false';
                             console.log('Checkbox value before form submission:', checkboxValue);
@@ -297,13 +305,15 @@
                             const formData = form.serialize() + "&serial_id=" + "{{ serial_id }}" + "&partition_id="
                                             + columns[0] + "&partition_size=" + columns[1] + "&checkbox_value=" + checkboxValue; // Add checkbox value
 
+                            console.log("Form data (After):", formData);
+                            
                             const CSRF_TOKEN = getCookie('csrftoken');
                             e.preventDefault(); // Prevent the default form submission
                             $.ajax({
                                 type: 'POST',
                                 headers: {
-                                            'X-CSRFToken': CSRF_TOKEN
-                                        },
+                                    'X-CSRFToken': CSRF_TOKEN
+                                },
                                 url: form.attr('action'),
                                 data: formData,
                                 success: function (data) {
@@ -332,12 +342,28 @@
                 let connectionID;
 
                 coldSocket.onmessage = function(e) {
+
                     const data = JSON.parse(e.data);
                     console.log('Data:', data);
 
                     const $progressHeader = $('.progress-header');
                     const $estimatedTime = $('.estimated-time');
                     $progressHeader.html(data['message']);
+
+                    // Cancel acquisition button
+                    $(document).on('click', '#cancel-acquisition-btn', function() {
+                        coldSocket.send(JSON.stringify({
+                            'type': 'cancel_acquisition',
+                            'unique_link': "{{ acquisitionProcess.unique_link|to_str}}",
+                        }));
+
+                        // disable the button
+                        $(this).removeClass('btn-danger').addClass('btn-danger disabled')
+                    });
+
+                    if (data['message'] === "Acquisition complete, now calculating the hash..."){
+                            $("#cancel-acquisition-btn").removeClass('btn-danger').addClass('btn-light disabled')
+                        }
 
                     // Handle the case where estimated_time_remaining is "calculating..."
                     if (data['estimated_time_remaining'] === "calculating...") {
@@ -406,11 +432,22 @@
                             }, 2000);
                             break;
 
+                        case "acquisition_cancelled":
+                            console.log("Current state:", data['type']);
+                            connectionID = data['connection_id'];
+
+                            $("#cancel-acquisition-btn").removeClass('btn-danger btn-progress').addClass('btn-light disabled').html(`<i class="fas fa-times"></i>  Cancelled`)
+                            
+                            break;
+
                         case "acquisition_completed":
                             console.log("Current state:", data['type']);
                             connectionID = data['connection_id'];
                             const progressBar = document.getElementById("progressBar");
                             progressBar.classList.remove("bg-success", "progress-bar-animated", "progress-bar-striped");
+
+                            $("#cancel-acquisition-btn").removeClass('btn-danger').addClass('btn-light disabled').html(`<i class="fas fa-times"></i>  Cancelled`)
+                            
                             break;
                     }
                 };
@@ -421,9 +458,7 @@
 
                 coldSocket.onclose = function(event) {
                     console.log(`WebSocket closed, code=${event.code}, reason=${event.reason}. Attempting to reconnect...`);
-                    //setTimeout(function() {
-                      //  establishWebSocketConnection();
-                    //}, 5000);
+
                 };
             }
 
@@ -431,6 +466,14 @@
                 console.log("fetchNewProgress called");
                 $.get('/acquisition-setup/{{ serial_id }}/progress/{{ acquisitionProcess.unique_link }}', function(data) {
                     $('.acquisition-body').fadeIn().html(data);
+
+                    // Initialize the cancel button after the HTML is added
+                    let $cancelAcquisitionBtn;
+                    $cancelAcquisitionBtn = $('#cancel-acquisition-btn');
+                    $cancelAcquisitionBtn.on('click', function() {
+                        console.log("Cancel button clicked");
+                        $(this).addClass('btn-progress');
+                    });
                 });
             }
 

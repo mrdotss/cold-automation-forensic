@@ -1,6 +1,7 @@
 from django.shortcuts import render
 from django.http import HttpResponse
 from django.template import loader
+from django.utils.decorators import method_decorator
 from django.views import View
 from django.shortcuts import render, redirect
 from django.contrib.auth import authenticate, login
@@ -8,9 +9,10 @@ from django.contrib import messages
 from django.conf import settings
 from django.contrib.auth import logout
 from .forms import SignUpForm, LoginForm
+from django.contrib.auth.decorators import login_not_required
 
 
-# Create your views here.
+@login_not_required
 class LoginInvestigator(View):
     """
     The LoginInvestigator class is a view class that handles the login functionality.
@@ -26,6 +28,8 @@ class LoginInvestigator(View):
 
     Note: This class assumes the use of other classes like LoginForm and settings from Django.
     """
+
+    @method_decorator(login_not_required)
     def dispatch(self, *args, **kwargs):
         if self.request.user.is_authenticated:
             return redirect('dashboard')
@@ -66,6 +70,7 @@ class LoginInvestigator(View):
             return redirect('caf_login')
 
 
+@login_not_required
 class RegisterInvestigator(View):
     """
 
@@ -82,6 +87,8 @@ class RegisterInvestigator(View):
     * accordingly and redirects to the appropriate page.
 
     """
+
+    @method_decorator(login_not_required)
     def dispatch(self, *args, **kwargs):
         if self.request.user.is_authenticated:
             return redirect('dashboard')

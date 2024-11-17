@@ -1,0 +1,528 @@
+{% load custom_filters %}
+
+<div class="col-12 col-sm-6 col-lg-6">
+    <div class="card">
+        <div class="card-header">
+            <h4><i class="fas fa-tools"></i> Tools</h4>
+        </div>
+        <div class="card-body">
+            <ul class="nav nav-tabs" id="myTab5" role="tablist">
+                <li class="nav-item" data-device='{{ device.id }}'>
+                    <a class="nav-link active" id="home-tab5" data-toggle="tab" data-device='{{ device.id }}' data-bs-target='#{{ device.id }}-logcat-pane' href="#home5" role="tab" aria-controls="home" aria-selected="true">
+                        <i class="fas fa-info"></i> Logcat
+                    </a>
+                </li>
+                <li class="nav-item" data-device='{{ device.id }}'>
+                    <a class="nav-link" id="profile-tab5" data-toggle="tab" data-device='{{ device.id }}' data-bs-target="#{{ device.id }}-profile" href="#profile5" role="tab" aria-controls="profile" aria-selected="false">
+                        <i class="fas fa-terminal"></i> Shell
+                    </a>
+                </li>
+                <li class="nav-item" data-device='{{ device.id }}'>
+                    <a class="nav-link" id="contact-tab5" data-toggle="tab" data-device='{{ device.id }}' data-bs-target="#{{id}}-contact"  href="#contact5" role="tab" aria-controls="contact" aria-selected="false">
+                        <i class="far fa-keyboard"></i> Input
+                    </a>
+                </li>
+                <li class="nav-item" data-device='{{ device.id }}'>
+                    <a class="nav-link" id="display-tab5" data-toggle="tab" data-device='{{ device.id }}' data-bs-target="#{{id}}-display"  href="#display5" role="tab" aria-controls="display" aria-selected="false">
+                        <i class="fa fa-camera"></i> Screenshot
+                    </a>
+                </li>
+            </ul>
+            <div class="tab-content" id="myTabContent5">
+                <div class="tab-pane fade show active" id="home5" role="tabpanel" aria-labelledby="home-tab5">
+                    <div class="card card-primary">
+
+                        <div class="card-header">
+                            <div class="buttons" id="{{ device.id }}-home" data-device="{{ device.id }}">
+                                <button type="button" class="btn btn-icon icon-left btn-info logcat-button" data-device='{{ device.id }}'><i class="fas fa-pen"></i> Generate</button>
+                                <button type="button" class="btn btn-icon icon-left btn-secondary logcat-clear-button" data-device='{{ device.id }}'><i class="fas fa-trash"></i> Clear</button>
+                                <button type="button" id="exportBtn" class="btn btn-icon icon-left btn-light exportBtn" data-device='{{ device.id }}'><i class="fas fa-file-export"></i> Export</button>
+                            </div>
+                        </div>
+
+                        <div class="card-logcat">
+                            <div id='{{ device.id }}-logcat' class="card-logcat-content logcat">
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+                <div class="tab-pane fade" id="profile5" role="tabpanel" aria-labelledby="profile-tab5">
+                    <div class="card card-primary">
+                        <div class="buttons" id="{{ device.id }}-profile" data-device="{{ device.id }}">
+                            <label for="{{ device.id }}-shell-input">Command</label>
+                            <input type="text" class="form-control shell-input" id="{{ device.id }}-shell-input" data-device='{{ device.id }}'>
+                        </div>
+                        Output:
+                        <div class="card-logcat">
+                            <pre id='{{ device.id }}-shell-output' class='card-logcat-content shell'>
+                            </pre>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tab-pane fade" id="contact5" role="tabpanel" aria-labelledby="contact-tab5">
+                    <p>Special Keys</p>
+                    <a class="ion ion-android-home special-key" style="font-size: 32px;" data-device='{{device.id}}' data-key='3' title='Home'></a>&nbsp;
+                    <a  class="ion ion-ios-arrow-left special-key" style="font-size: 32px;" data-device='{{device.id}}' data-key='4' title='Back'></a>&nbsp;
+                    <a class="ion ion-android-menu special-key" style="font-size: 32px;" data-device='{{device.id}}' data-key='187' title='Menu'></a>&nbsp;
+                    <a class="ion ion-android-send special-key" style="font-size: 32px;" data-device='{{device.id}}' data-key='66' title='Enter'></a>&nbsp;
+                    <a class="ion ion-arrow-left-c special-key" style="font-size: 32px;" data-device='{{device.id}}' data-key='67' title='Backspace'></a>&nbsp;
+                    <a class="ion ion-ipad special-key" style="font-size: 32px;" data-device='{{device.id}}' data-key='61' title='Tab'></a>
+                    <br><br><label for="{{ device.id }}-text-input" class="form-label">Input text</label>
+                    <input type="text" class="form-control text-input" data-device='{{ device.id }}' id="{{ device.id }}-text-input" aria-describedby="emailHelp"/>
+                    <div id="{{device.id}}-emailHelp" class="form-text">Enter any text, then the text will type in your device.
+                    </div>
+                </div>
+
+                <div class="tab-pane fade" id="display5" role="tabpanel" aria-labelledby="display-tab5">
+                    <div class="card card-primary">
+                        <div class="card-header">
+                            <div class="buttons" id="{{ device.id }}-display" data-device="{{ device.id }}">
+                                <button type="button" class="btn btn-icon icon-left btn-info screenshot-button" data-device='{{ device.id }}'>
+                                    <i class="fa fa-camera"></i> Screenshot
+                                </button>
+                                <button type="button" class="btn btn-icon icon-left btn-secondary screenshot-clear-button" data-device='{{ device.id }}'><i class="fas fa-trash"></i> Clear</button>
+                                <button type="button" id="exportScreenshotBtn" class="btn btn-icon icon-left btn-light" data-device='{{ device.id }}'><i class="fas fa-file-export"></i> Save</button>
+                                <button type="button" class="btn btn-warning" data-toggle="tooltip" data-placement="top" title="You can click the screenshot image to send a tap directly at the position you clicked."><i class="fas fa-info-circle"></i></button>
+                            </div>
+                        </div>
+                        <div class="card-content-sizing">
+                            <div id='{{ device.id }}-screenshot' class='card-content'>
+                                <!-- Screenshot will be displayed here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="col-lg-6 col-md-6 col-12">
+    <div class="card">
+        <div class="card-header">
+            <h4><i class="fa fa-info-circle"></i> Device</h4>
+            <div class="card-header-action">
+                <a href="#summary-details" data-tab="summary-tab" class="btn active">Details</a>
+                <a href="#summary-acquisition-history" data-tab="summary-tab" class="btn">Acquisition History</a>
+            </div>
+        </div>
+
+        <div class="card-body">
+          <!-- Details Tab -->
+            <div class="summary active" data-tab-group="summary-tab" id="summary-details">
+                <div class="summary-info" >
+                    <h1>
+                        <img class="mr-3" width="40" src="/static/assets/img/icons/smartphone/{{ device.manufacturer }}.png" alt="product">{{ device.manufacturer }}
+                    </h1>
+                    <div class="text-muted">{{ device.model }}
+                    </div>
+                    <br>
+                    <a href="/device/acquisition/{{ device.id }}" class="btn btn-outline-secondary">
+                        <i class="fa fa-cog" aria-hidden="true"></i>  Acquisition Setup
+                    </a>
+                </div>
+
+                <div class="summary-item">
+                    <div class="card">
+                        <div class="card-body">
+                            <div class="section-title mt-0">Details</div>
+                            <div class="table-responsive">
+                                <table class="table table-sm">
+                                    <tbody>
+                                    <tr>
+                                        <td><div class="text-dark mb-1">Serial Number</div></td>
+                                        <td>{{ device.serial }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td><div class="text-dark mb-1">IMEI</div></td>
+                                        <td>{{ device.IMEI }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td><div class="text-dark mb-1">Root Status</div></td>
+                                        <td> <mark>{{ device.isRooted }}</mark> </td>
+                                    </tr>
+                                    <tr>
+                                        <td><div class="text-dark mb-1">Android ID</div></td>
+                                        <td>{{ device.AndroidID }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td><div class="text-dark mb-1">Product</div></td>
+                                        <td>{{ device.product }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td><div class="text-dark mb-1">SDK</div></td>
+                                        <td>{{ device.sdk }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td><div class="text-dark mb-1">Operator</div></td>
+                                        <td>{{ device.operator }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td><div class="text-dark mb-1">SELinux</div></td>
+                                        <td>{{ device.SELinux }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td><div class="text-dark mb-1">Timezone</div></td>
+                                        <td>{{ device.timezone }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td><div class="text-dark mb-1">Security Patch</div></td>
+                                        <td>{{ device.security_patch }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td><div class="text-dark mb-1">API Level</div></td>
+                                        <td>{{ device.api_level }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td><div class="text-dark mb-1">SSID</div></td>
+                                        <td>{{ device.network.ssid }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td><div class="text-dark mb-1">Battery</div></td>
+                                        <td>{{ device.battery.level }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td><div class="text-dark mb-1">Screen</div></td>
+                                        <td>{{ device.screen.width }} x {{ device.screen.height }} px</td>
+                                    </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Acquisition History Tab -->
+            <div class="summary" data-tab-group="summary-tab" id="summary-acquisition-history" style="display: none;">
+                <div class="summary-info" >
+                    <h1>
+                        <img class="mr-3" width="40" src="/static/assets/img/icons/smartphone/{{ device.manufacturer }}.png" alt="product">{{ device.manufacturer }}
+                    </h1>
+                    <div class="text-muted">{{ device.model }}
+                    </div>
+                    <br>
+                    <a href="/device/acquisition/{{ device.id }}" class="btn btn-outline-secondary">
+                        <i class="fa fa-cog" aria-hidden="true"></i>  Acquisition Setup
+                    </a>
+                </div>
+
+                <div class="summary-item">
+                    <div class="card-content-sizing-history">
+                        <div class="section-title mt-0">Acquisition History</div>
+                        <br>
+                        <div id='{{ device.id }}-screenshot' class='card-content'>
+                            <!-- History will be displayed here -->
+                            <ul class="list-unstyled list-unstyled-border">
+                                {% for history in acquisitionHistory %}
+
+                                    <li class="media">
+                                        {% if history.type == 'physical' %}
+                                            <i class="fas fa-hdd" style='font-size:40px' title="{{ history.type }}"></i>&nbsp;&nbsp;&nbsp;
+                                            <div class="media-body">
+                                            <div class="media-title"><a href="#">Physical Acquisition</a></div>
+                                        {% elif history.type == 'selective_full_file_system' %}
+                                            <i class="fas fa-file-export" style='font-size:40px' title="{{ history.type }}"></i>&nbsp;&nbsp;&nbsp;
+                                            <div class="media-body">
+                                            <div class="media-title"><a href="#">Selective Full File System Acquisition</a></div>
+                                        {% endif %}
+
+                                            <div class="media-right">{{ history.percentage }}%</div>
+                                            <div class="text-small text-muted">Status: <a href="#">{{ history.status }}</a> <div class="bullet"></div>
+                                                {{ history.date }}</div>
+                                        </div>
+                                    </li>
+
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+{% block javascript %}
+    <script>
+
+        const deviceIP = "{{ device.IP|to_str }}";
+        if (deviceIP !== "NULL"){
+            $('#showBridge').html(`<span class="d-inline-block" data-toggle="tooltip" data-title="This device is connected via IP address: {{ device.IP }}">
+            <button class="btn btn-outline-secondary pe-none" type="button" disabled>WiFi</button>
+            </span>`)
+            $('[data-toggle="tooltip"]').tooltip(); // Initialize the tooltip for the new element
+        }else{
+            $('#showBridge').html(`<span class="d-inline-block" data-toggle="tooltip" data-title="This device is connected via USB">
+            <button class="btn btn-outline-secondary pe-none" type="button" disabled>USB</button>
+            </span>`)
+            $('[data-toggle="tooltip"]').tooltip(); // Initialize the tooltip for the new element
+        }
+
+        $('.logcat-button').click(function() {
+            const exportBtn = document.getElementById('exportBtn');
+            exportBtn.disabled = true;
+            
+            const logcatBtn = this;
+            // Disable the button
+            logcatBtn.disabled = true;
+    
+            var device = "{{ id|to_str }}"
+            $('#' + device + '-logcat').html('');
+            $.ajax({
+                url: '/device/logcat/' + device, 
+                type: 'GET', 
+                dataType: 'text', 
+                success: function(logtext) {
+                    $('#' + device + '-logcat').html(logtext);
+                    
+                    setTimeout(function () {
+                        logcatBtn.disabled = false;
+                        exportBtn.disabled = false;
+                        }, 2500); // Time in milliseconds
+                    }
+            });
+        });
+
+        $('.logcat-clear-button').click(function() {
+            var device = "{{ id|to_str }}"
+            $('#' + device + '-logcat').html('');
+        });
+
+        $('.exportBtn').click(function() {
+            const exportBtn = this;
+            // Disable the button
+            exportBtn.disabled = true;
+
+            const id = $(this).data('device');
+            const dateTime = getCurrentDateTime();
+            const filename = `logcat-${id}-${dateTime}.txt`;
+            const cardContent = document.querySelector('.card-logcat-content').innerText;
+            const blob = new Blob([cardContent], { type: 'text/plain;charset=utf-8' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = filename;
+            link.click();
+
+            setTimeout(function () {
+                exportBtn.disabled = false;
+                }, 3500); // Time in milliseconds
+            });
+
+        $('.shell-input').keypress(function(e) {
+            if (e.which == 13) {
+                var device = "{{ id|to_str }}";
+                var input = $('#' + device + '-shell-input').val().trim(); // Trim spaces from input
+
+                if (!input) {
+                    alert("Command cannot be empty");
+                    return;
+                }
+            
+                $('#' + device + '-shell-output').html('');
+            
+                $.ajax({
+                    url: '/device/shell/' + device,
+                    type: 'POST',
+                    headers: { 'X-CSRFToken': csrftoken },
+                    data: JSON.stringify({ 'device': device, 'command': input }),
+                    processData: false,
+                    contentType: 'application/json',
+                    dataType: 'text',
+                    success: function(result) {
+                        $('#' + device + '-shell-output').html(result);
+                        console.log(result);
+                        },
+                    error: function(xhr, status, error) {
+                        console.error("Error: ", error);
+                        alert("Error executing command. Please try again.");
+                    }
+                });
+            }
+        });
+
+        $('.special-key').click(function() {
+            var device = "{{ id|to_str }}"
+            var key = $(this).data('key');
+
+            $.ajax({
+                url: '/device/key/' + device,
+                type: 'POST',
+                headers: { 'X-CSRFToken': csrftoken },
+                data: JSON.stringify({ 'device': device, 'key': key }),
+                processData: false,
+                dataType: 'text',
+                success: function(result) {
+                    console.log(result);
+                    if (result === 'OK') {
+                        setTimeout(function() {
+                            $('.fa-camera[data-device=' + device + ']').trigger('click');
+                            }, 1500);
+                    }
+                }
+            });
+        });
+
+        $('.screenshot-button').click(function() {
+            const screenshotBtn = this;
+            screenshotBtn.disabled = true;
+
+            var device = "{{ id|to_str }}"
+            $('#' + device + '-screenshot').html('');
+            $.ajax({
+                url: '/device/screenshot/' + device,
+                type: 'GET',
+                xhrFields: {
+                responseType: 'blob'
+                }, success: function(blob) {
+                    const img = document.createElement('img');
+                    const url = URL.createObjectURL(blob);
+                    img.src = url;
+                    img.style.width = '100%';
+                    img.style.height = 'auto';
+                    img.id = device + '-screenshot-img'; // Add an ID to the image for reference
+    
+                    // Add click event listener to the image
+                    img.addEventListener('click', function(event) {
+                        handleImageClick(event, device);
+                    });
+
+                    $('#' + device + '-screenshot').html(img);
+
+                    const exportBtn = document.getElementById('exportScreenshotBtn');
+                    exportBtn.disabled = false;
+                    exportBtn.onclick = function() {
+                        const link = document.createElement('a');
+                        link.href = url;
+                        link.download = `screenshot-${device}-${getCurrentDateTime()}.png`;
+                        link.click();
+                    };
+    
+                    setTimeout(function() {
+                        screenshotBtn.disabled = false;
+                        }, 2500); // Time in milliseconds
+                    }, error: function(err) {
+                    console.error("Error capturing screenshot:", err);
+                    screenshotBtn.disabled = false;
+                }
+            });
+        });
+
+        function handleImageClick(event, device) {
+            const img = event.target;
+    
+            // Get the position of the click relative to the image
+            const rect = img.getBoundingClientRect();
+            const x = event.clientX - rect.left; // x-coordinate relative to the image
+            const y = event.clientY - rect.top;  // y-coordinate relative to the image
+    
+            // Send the coordinates to the server to simulate touch
+            simulateTouch(device, x, y, img.naturalWidth, img.naturalHeight, rect.width, rect.height);
+        }
+
+        function simulateTouch(device, x, y, imageWidth, imageHeight, displayedWidth, displayedHeight) {
+            // Map the displayed coordinates to the actual image coordinates
+            const scaleX = imageWidth / displayedWidth;
+            const scaleY = imageHeight / displayedHeight;
+    
+            const actualX = Math.round(x * scaleX);
+            const actualY = Math.round(y * scaleY);
+    
+            // Send AJAX request to the server to simulate touch
+            $.ajax({
+                url: '/device/simulate_touch/' + device,
+                type: 'POST',
+                headers: { 'X-CSRFToken': csrftoken },
+                data: JSON.stringify({ x: actualX, y: actualY }),
+                contentType: 'application/json',
+                success: function(response) {
+                    console.log('Touch event simulated successfully:', response);
+                    },
+                error: function(err) {
+                    console.error("Error simulating touch event:", err);
+                }
+            });
+        }
+
+        $('.screenshot-clear-button').click(function() {
+            var device = "{{ id|to_str }}"
+            $('#' + device + '-screenshot').html('');
+        });
+
+        function getCurrentDateTime() {
+            const now = new Date();
+            return now.toISOString().slice(0, 19).replace(/[-:T]/g, '');
+        }
+
+        $('.text-input').keypress(function(e) {
+            if (e.which == 13) {
+                var device = "{{ id|to_str }}"
+                input = $('#' + device + '-text-input').val();
+                $('#' + device + '-text-output').html('');
+
+                $.ajax({
+                    url: '/device/text/' + device,
+                    type: 'POST',
+                    headers: { 'X-CSRFToken': csrftoken },
+                    data: JSON.stringify({ 'device': device, 'text': input }),
+                    processData: false,
+                    dataType: 'text',
+                    success: function(result) {
+                        console.log(result);
+                        if (result == 'OK') {
+                            setTimeout(function() {
+                                $('.fa-camera[data-device=' + device + ']').trigger('click');
+                                }, 1500);
+                        }
+                    }
+                });
+            }
+        });
+
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let cookie of cookies) {
+                    cookie = cookie.trim();
+
+                    // Does this cookie string begin with the name we want?
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+        // JavaScript for Tab Switching
+        document.querySelectorAll('[data-tab="summary-tab"]').forEach((tabLink) => {
+            tabLink.addEventListener('click', (e) => {
+                e.preventDefault();
+
+                // Remove 'active' class from all tab links and hide all sections
+                document.querySelectorAll('[data-tab="summary-tab"]').forEach((tab) => tab.classList.remove('active'));
+                document.querySelectorAll('[data-tab-group="summary-tab"]').forEach((section) => {
+                section.style.display = 'none';
+                section.classList.remove('active');
+                });
+
+                // Add 'active' class to clicked tab and show corresponding section
+                tabLink.classList.add('active');
+                const targetId = tabLink.getAttribute('href');
+                const targetSection = document.querySelector(targetId);
+                if (targetSection) {
+                    targetSection.style.display = 'block';
+                    targetSection.classList.add('active');
+                }
+            });
+        });
+
+        const csrftoken = getCookie('csrftoken');
+    </script>
+{% endblock javascript %}

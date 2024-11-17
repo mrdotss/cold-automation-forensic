@@ -1,5 +1,4 @@
-from lib2to3.fixes.fix_input import context
-
+from urllib.parse import parse_qs
 from django.db.models import F
 from django.views import View
 from django.template import loader
@@ -9,15 +8,15 @@ from django.http import HttpResponse, JsonResponse
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from django.shortcuts import render, get_object_or_404, redirect
-from django.contrib.auth.decorators import login_required
 from django.core.serializers.json import DjangoJSONEncoder
 from django.views.generic import ListView, CreateView, UpdateView, DeleteView
 
 from ..caf.ColdForensic import ColdForensic
-from .models import Case, User, Evidence, Acquisition, PhysicalAcquisition
+from .models import Case, User, Evidence, Acquisition, PhysicalAcquisition, FullFileSystemAcquisition, SelectiveFullFileSystemAcquisition
 from .forms import CaseUpdateForm, EvidenceUpdateForm, ChainOfCustodyForm, AdditionalInfoForm
-from apps.home.asynchronous.task import physicalAcquisition
-import time, random, string, json, uuid
+from apps.home.asynchronous.task import physicalAcquisition, selectiveFfsAcquisition
+import time, random, string, json, uuid, os
+from datetime import datetime
 
 
 class UUIDEncoder(DjangoJSONEncoder):
@@ -46,7 +45,6 @@ class UUIDEncoder(DjangoJSONEncoder):
 
 
 class Dashboard(View):
-    @method_decorator(login_required(login_url='caf_login'))
     def dispatch(self, *args, **kwargs):
         return super().dispatch(*args, **kwargs)
 
@@ -66,7 +64,6 @@ class Dashboard(View):
 
 
 class CaseListView(ListView):
-    @method_decorator(login_required(login_url='caf_login'))
     def dispatch(self, *args, **kwargs):
         return super().dispatch(*args, **kwargs)
 
@@ -77,7 +74,6 @@ class CaseListView(ListView):
 
 
 class CaseCreateView(CreateView):
-    @method_decorator(login_required(login_url='caf_login'))
     def dispatch(self, *args, **kwargs):
         return super().dispatch(*args, **kwargs)
 
@@ -116,7 +112,6 @@ class CaseCreateView(CreateView):
 
 
 class CaseUpdateView(UpdateView):
-    @method_decorator(login_required(login_url='caf_login'))
     def dispatch(self, *args, **kwargs):
         return super().dispatch(*args, **kwargs)
 
@@ -202,7 +197,6 @@ class CaseUpdateView(UpdateView):
 
 
 class CaseDeleteView(DeleteView):
-    @method_decorator(login_required(login_url='caf_login'))
     @method_decorator(csrf_exempt)  # To allow AJAX POST requests without CSRF token
     def dispatch(self, *args, **kwargs):
         return super().dispatch(*args, **kwargs)
@@ -222,43 +216,43 @@ class CaseDeleteView(DeleteView):
         return reverse_lazy('cases_home')
 
 
-@login_required(login_url='caf_login')
 def get_case_members(request, case_id):
     case = get_object_or_404(Case, case_id=case_id)
     members = case.case_member.all().values('id', 'user_name', 'user_roles')
     return JsonResponse(list(members), safe=False)
 
 
-@login_required(login_url='caf_login')
 def get_evidence_modal_data(request, evidence_id):
     evidence = Evidence.objects.get(evidence_id=evidence_id)
     return render(request, 'includes/evidence_modal.html', {'evidence': evidence})
 
-@login_required(login_url='caf_login')
 def get_evidence_acquisition_history(request, evidence_id):
     acquisition = Acquisition.objects.filter(evidence=evidence_id)
     evidence = Evidence.objects.get(evidence_id=evidence_id)
     return render(request, 'includes/evidence_acquisition_history.html', {'acquisition': acquisition, 'evidence': evidence})
 
-@login_required(login_url='caf_login')
 def get_acquisition_presetup(request, serial_id, unique_link):
-    print(f"Serial: {serial_id} | Unique: {unique_link}")
-
     acquisitionObject = Acquisition.objects.get(unique_link=unique_link)
 
     print(f"Serial: {serial_id} | Unique: {unique_link} | Object: {acquisitionObject}")
 
-    if acquisitionObject.status in ["in_progress", "pending", "failed"]:
+    if acquisitionObject.status in ["in_progress", "pending", "failed", "cancelled"]:
 
-        if acquisitionObject.status == "failed":
+        if acquisitionObject.status in ["failed", "cancelled"]:
             # Resume the failed acquisition
             acquisitionObject.status = "in_progress"
             acquisitionObject.save()
 
-        result = physicalAcquisition.delay('acquisition-progress_%s' % unique_link, unique_link)
+        if acquisitionObject.acquisition_type == "physical":
+            result = physicalAcquisition.delay('acquisition-progress_%s' % unique_link, unique_link)
 
-        if result.failed():
-            print("Failed ->", result.traceback)
+            if result.failed():
+                print("Failed ->", result.traceback)
+        elif acquisitionObject.acquisition_type == "selective_full_file_system":
+            result = selectiveFfsAcquisition.delay('acquisition-progress_%s' % unique_link, unique_link)
+
+            if result.failed():
+                print("Failed ->", result.traceback)
 
         print("Status ->", result.status)  # This will print the current status of the task
 
@@ -267,21 +261,20 @@ def get_acquisition_presetup(request, serial_id, unique_link):
     else:
         return HttpResponse("Serial ID not found")
 
-@login_required(login_url='caf_login')
 def get_acquisition_setup(request, serial_id, unique_link):
     isUniqueCode = Acquisition.objects.filter(unique_link=unique_link).exists()
 
     if ColdForensic().checkSerialID(serial_id) and isUniqueCode:
         getAcquisitionObject = Acquisition.objects.get(unique_link=unique_link)
 
-        if getAcquisitionObject.status in ["in_progress", "pending", "failed"]:
-            return render(request, 'includes/acquisition_progress.html', {'acquisitionObject': getAcquisitionObject})
-        # if getAcquisitionObject.status in ["failed"]:
-        #     return render(request, 'home/device-acquisition-resume.html', {'acquisitionObject': getAcquisitionObject})
+        if getAcquisitionObject.status in ["in_progress", "pending", "cancelled", "failed"]:
+            if getAcquisitionObject.acquisition_type == "physical":
+                return render(request, 'includes/acquisition_progress.html', {'acquisitionObject': getAcquisitionObject})
+            if getAcquisitionObject.acquisition_type == "selective_full_file_system":
+                return render(request, 'includes/acquisition_progress_spinner.html', {'acquisitionObject': getAcquisitionObject})
 
     return HttpResponse("Serial ID not found")
 
-@login_required(login_url='caf_login')
 def get_acquisition_save_location(request, serial_id, unique_link):
     isUniqueCode = Acquisition.objects.filter(unique_link=unique_link).exists()
 
@@ -295,11 +288,13 @@ def get_acquisition_save_location(request, serial_id, unique_link):
         isHashedIP = ColdForensic().is_hashed_ip_or_not(serial_id)
         isWifi = ColdForensic().check_if_hashed_ip(serial_id, ColdForensic().secret_key) if isHashedIP else False
         ipAddress = ColdForensic().decrypt(serial_id, ColdForensic().secret_key).split(':')[0] if isHashedIP else ""
+        acquisitionType = Acquisition.objects.get(unique_link=unique_link).acquisition_type
 
         context ={
             'evidenceList': evidenceList,
             'isWifi': isWifi,
             'ipAddress': ipAddress,
+            'acquisitionType': acquisitionType,
         }
 
         return render(request, 'includes/acquisition_save_location.html', context)
@@ -307,7 +302,6 @@ def get_acquisition_save_location(request, serial_id, unique_link):
         return HttpResponse("Serial ID or Unique not found")
 
 class EvidenceListView(ListView):
-    @method_decorator(login_required(login_url='caf_login'))
     def dispatch(self, *args, **kwargs):
         return super().dispatch(*args, **kwargs)
 
@@ -318,7 +312,7 @@ class EvidenceListView(ListView):
 
 
 class EvidenceCreateView(CreateView):
-    @method_decorator(login_required(login_url='caf_login'))
+
     def dispatch(self, *args, **kwargs):
         return super().dispatch(*args, **kwargs)
 
@@ -361,7 +355,6 @@ class EvidenceCreateView(CreateView):
 
 
 class EvidenceUpdateView(UpdateView):
-    @method_decorator(login_required(login_url='caf_login'))
     def dispatch(self, *args, **kwargs):
         return super().dispatch(*args, **kwargs)
 
@@ -423,7 +416,6 @@ class EvidenceUpdateView(UpdateView):
 
 
 class EvidenceDeleteView(DeleteView):
-    @method_decorator(login_required(login_url='caf_login'))
     @method_decorator(csrf_exempt)  # To allow AJAX POST requests without CSRF token
     def dispatch(self, *args, **kwargs):
         return super().dispatch(*args, **kwargs)
@@ -444,7 +436,6 @@ class EvidenceDeleteView(DeleteView):
 
 
 class Devices(View):
-    @method_decorator(login_required(login_url='caf_login'))
     def dispatch(self, *args, **kwargs):
         return super().dispatch(*args, **kwargs)
 
@@ -457,7 +448,6 @@ class Devices(View):
 
 
 class DevicesDetail(View):
-    @method_decorator(login_required(login_url='caf_login'))
     def dispatch(self, *args, **kwargs):
         return super().dispatch(*args, **kwargs)
 
@@ -472,7 +462,6 @@ class DevicesDetail(View):
 
 
 class Analysts(View):
-    @method_decorator(login_required(login_url='caf_login'))
     def dispatch(self, *args, **kwargs):
         return super().dispatch(*args, **kwargs)
 
@@ -485,7 +474,6 @@ class Analysts(View):
 
 
 class Profiles(View):
-    @method_decorator(login_required(login_url='caf_login'))
     def dispatch(self, *args, **kwargs):
         return super().dispatch(*args, **kwargs)
 
@@ -503,7 +491,6 @@ class Profiles(View):
 
 
 class Acquisitions(View):
-    @method_decorator(login_required(login_url='caf_login'))
     def dispatch(self, *args, **kwargs):
         return super().dispatch(*args, **kwargs)
 
@@ -515,7 +502,6 @@ class Acquisitions(View):
         isRooted = ColdForensic().isRooted(serial_id)
 
         if isDevice:
-
             context = {
                 'serial_id': serial_id,
                 'storage': storage,
@@ -528,7 +514,6 @@ class Acquisitions(View):
             return HttpResponse("Device not found")
 
 
-@method_decorator(login_required(login_url='caf_login'), name='dispatch')
 class AcquisitionSetup(View):
 
     def get(self, request, serial_id, unique_code):
@@ -541,20 +526,23 @@ class AcquisitionSetup(View):
         isHashedIP = ColdForensic().is_hashed_ip_or_not(serial_id)
         isWifi = ColdForensic().check_if_hashed_ip(serial_id, ColdForensic().secret_key) if isHashedIP else False
 
-        acquisitionHistory = Acquisition.objects.filter(device_id=serial_id).select_related('physical')
-
         # For FFS method
-        if acquisitionObject.acquisition_type == "full-file-system":
+        if acquisitionObject.acquisition_type == "selective_full_file_system":
+            acquisitionHistory = Acquisition.objects.filter(device_id=serial_id, acquisition_type="selective_full_file_system").order_by('-date')
             fileSystemList = ColdForensic().getFullFileSystem(serial_id)
 
             context = {
+                'serial_id': serial_id,
                 'file_system_list': fileSystemList,
                 'acquisitionHistory': acquisitionHistory,
+                'acquisitionProcess': acquisitionObject,
                 'isWifi': isWifi
             }
 
             if isHashedIP:
                 context = {
+                    'serial_id': serial_id,
+                    'acquisitionProcess': acquisitionObject,
                     'file_system_list': fileSystemList,
                     'acquisitionHistory': acquisitionHistory,
                     'isWifi': isWifi,
@@ -563,12 +551,32 @@ class AcquisitionSetup(View):
 
             return render(request, 'home/device-acquisition-ffs-setup.html', context)
 
+        # Combine filtering and sorting in one query for clarity and efficiency
+        acquisitionList = Acquisition.objects.filter(
+            device_id=serial_id,
+            acquisition_type='physical'
+        ).exclude(status='pending').order_by('-date')
+
+        # Extract and calculate percentages in a more Pythonic way
+        percentageList = [
+            {
+                'percentage': int(100 * (int(data['physical__total_transferred_bytes']) /
+                                         (int(data['physical__partition_size']) * 1024)))
+            }
+            for data in acquisitionList.values('physical__total_transferred_bytes', 'physical__partition_size')
+        ]
+
+        acquisitionHistory = zip(acquisitionList, percentageList)
+
         # Check if the acquisition needs to resume
-        if hasattr(acquisitionObject, 'physical') and acquisitionObject.physical.total_transferred_bytes >= 0 and acquisitionObject.status in ["failed", "in_progress"]:
+        if hasattr(acquisitionObject, 'physical') and acquisitionObject.physical.total_transferred_bytes >= 0 and acquisitionObject.status in ["cancelled", "failed", "in_progress"]:
+
+            # Prepare the context for rendering
             context = {
                 'serial_id': serial_id,
                 'acquisitionProcess': acquisitionObject,
                 'acquisitionHistory': acquisitionHistory,
+                'acquisitionPercentage': percentageList,
             }
 
             if isHashedIP:
@@ -576,6 +584,8 @@ class AcquisitionSetup(View):
                     'serial_id': serial_id,
                     'acquisitionProcess': acquisitionObject,
                     'acquisitionHistory': acquisitionHistory,
+                    'acquisitionPercentage': percentageList,
+                    'isWifi': isWifi,
                     'ipAddress': ColdForensic().decrypt(serial_id, ColdForensic().secret_key).split(':')[0]
                 }
 
@@ -615,79 +625,158 @@ class AcquisitionSetup(View):
 
         data = {key: value for key, value in request.POST.items() if key != 'csrfmiddlewaretoken'}
 
-        # Get current time
-        current_time = time.strftime("%Y%m%d%H%M%S")
-
-        # Generate a random string for unique identifier
-        unique_id = ''.join(random.choices(string.ascii_lowercase + string.digits, k=5))
-
         # Check if the device is connected via WiFi or USB
         isHashedIP = ColdForensic().is_hashed_ip_or_not(serial_id)
         isWifi = ColdForensic().check_if_hashed_ip(serial_id, ColdForensic().secret_key) if isHashedIP else False
 
         connection_type = 'WiFi' if isWifi else 'USB'
 
-        acquisition_file_name = f"{data['partition_id']}_{current_time}_{unique_id}_{connection_type.lower()}.dd"
+        if acquisitionObject.acquisition_type == "physical":
+            # Get current time
+            current_time = time.strftime("%Y%m%d%H%M%S")
 
-        # Convert checkbox_value to boolean or integer
-        acquisition_is_verify_first = data['checkbox_value'] == 'true'
+            # Generate a random string for unique identifier
+            unique_id = ''.join(random.choices(string.ascii_lowercase + string.digits, k=5))
 
-        # Retrieve the evidence object based on the provided evidence_name
-        evidence = Evidence.objects.get(evidence_id=data['evidence_name'])
+            acquisition_file_name = f"{data['partition_id']}_{current_time}_{unique_id}_{connection_type.lower()}.dd"
 
-        # Calculate the acquisition size template (convert partition size to MB)
-        acquisition_size_template = round(int(data['partition_size']) / 1000000, 2)
+            # Convert checkbox_value to boolean or integer
+            acquisition_is_verify_first = data['checkbox_value'] == 'true'
 
-        # Check if a PhysicalAcquisition already exists for this Acquisition
-        physical_acquisition, created = PhysicalAcquisition.objects.get_or_create(
-            acquisition=acquisitionObject,
-            defaults={
-                'partition_id': data['partition_id'],
-                'partition_size': data['partition_size'],
-                'is_verify_first': acquisition_is_verify_first,
-                'acquisition_method': "dd",
-                'source_device': f"/dev/block/{data['partition_id']}",
-            }
-        )
+            # Retrieve the evidence object based on the provided evidence_name
+            evidence = Evidence.objects.get(evidence_id=data['evidence_name'])
 
-        # If it already exists, you can update the necessary fields
-        if not created:
-            physical_acquisition.partition_id = data['partition_id']
-            physical_acquisition.partition_size = data['partition_size']
-            physical_acquisition.is_verify_first = acquisition_is_verify_first
-            physical_acquisition.acquisition_method = "dd"
-            physical_acquisition.source_device = f"/dev/block/{data['partition_id']}"
-            physical_acquisition.save()
+            # Calculate the acquisition size template (convert partition size to MB)
+            acquisition_size_template = round(int(data['partition_size']) / 1000000, 2)
 
-        # Update acquisition object
-        acquisitionObject.evidence_id = evidence.evidence_id
-        acquisitionObject.connection_type = connection_type
-        acquisitionObject.file_name = acquisition_file_name
-        acquisitionObject.full_path = data['full_path']
-        acquisitionObject.client_ip = data.get('client_ip') if data.get('client_ip') != "USB" else ""  # Handle optional fields safely
-        acquisitionObject.port = data.get('port') if data.get('port') != "USB" else ""
-        acquisitionObject.status = "in_progress"
-        acquisitionObject.size = round(int(data['partition_size']) / 1000000, 2)
+            # Check if a PhysicalAcquisition already exists for this Acquisition
+            physical_acquisition, created = PhysicalAcquisition.objects.get_or_create(
+                acquisition=acquisitionObject,
+                defaults={
+                    'partition_id': data['partition_id'],
+                    'partition_size': data['partition_size'],
+                    'is_verify_first': acquisition_is_verify_first,
+                    'acquisition_method': "dd",
+                    'source_device': f"/dev/block/{data['partition_id']}",
+                }
+            )
 
-        # Save the updated acquisition object
-        acquisitionObject.save()
+            # If it already exists, you can update the necessary fields
+            if not created:
+                physical_acquisition.partition_id = data['partition_id']
+                physical_acquisition.partition_size = data['partition_size']
+                physical_acquisition.is_verify_first = acquisition_is_verify_first
+                physical_acquisition.acquisition_method = "dd"
+                physical_acquisition.source_device = f"/dev/block/{data['partition_id']}"
+                physical_acquisition.save()
 
-        print("POST Data ->", data)
-        return HttpResponse("Task started..")
+            base_path = data['full_path']
+            # Generate a unique and structured folder name
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            random_suffix = ''.join(random.choices(string.ascii_lowercase + string.digits, k=6))
+            folderName = f"evidence_{timestamp}_{random_suffix}"
+
+            try:
+                os.makedirs(f"{base_path}/{folderName}", exist_ok=True)
+                print(f"Folder created at {base_path}/{folderName}")
+            except OSError as e:
+                print(f"Failed to create directory {base_path}/{folderName}: {e}")
+
+            acquisitionObject.evidence_id = evidence.evidence_id
+            acquisitionObject.connection_type = connection_type
+            acquisitionObject.full_path = f"{base_path}/{folderName}"
+            acquisitionObject.file_name = acquisition_file_name
+
+            acquisitionObject.client_ip = data.get('client_ip') if data.get('client_ip') != "USB" else ""  # Handle optional fields safely
+            acquisitionObject.port = data.get('port') if data.get('port') != "USB" else ""
+            acquisitionObject.status = "in_progress"
+            acquisitionObject.size = round(int(data['partition_size']) / 1000000, 2)
+
+            # Save the updated acquisition object
+            acquisitionObject.save()
+
+            print("POST Data ->", data)
+            return HttpResponse("Task started..")
+
+        elif acquisitionObject.acquisition_type == "selective_full_file_system":
+
+            # If app_list is missing in data, retrieve it directly from request.body
+            if 'app_list' not in data:
+                raw_body = request.body.decode('utf-8')  # Decode the raw body to a string
+                parsed_body = parse_qs(raw_body)  # Parse the query string to a dictionary
+                app_list_str = parsed_body.get('app_list', ['[]'])[
+                    0]  # Extract app_list, defaulting to '[]' if not found
+            else:
+                app_list_str = data.get('app_list', '[]')
+
+            # Convert app_list JSON string to a Python list
+            try:
+                app_list = json.loads(app_list_str)
+            except json.JSONDecodeError:
+                app_list = []
+
+            # Retrieve the evidence object based on the provided evidence_name
+            evidence = Evidence.objects.get(evidence_id=data['evidence_name'])
+
+            selective_ffs_acquisition, created = SelectiveFullFileSystemAcquisition.objects.get_or_create(
+                acquisition=acquisitionObject,
+                defaults={
+                    'acquisition_tool': 'tar,netcat',
+                    'selected_applications': json.loads(data['app_list']),
+                    'total_records': len(json.loads(data['app_list'])),
+                }
+            )
+
+            if not created:
+                selective_ffs_acquisition.acquisition_tool = 'tar,netcat'
+                selective_ffs_acquisition.selected_applications = json.loads(data['app_list'])
+                selective_ffs_acquisition.total_records = len(json.loads(data['app_list']))
+                selective_ffs_acquisition.save()
+
+            base_path = data['full_path']
+            # Generate a unique and structured folder name
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            random_suffix = ''.join(random.choices(string.ascii_lowercase + string.digits, k=6))
+            folderName = f"evidence_{timestamp}_{random_suffix}"
+
+            try:
+                os.makedirs(f"{base_path}/{folderName}", exist_ok=True)
+                print(f"Folder created at {base_path}/{folderName}")
+            except OSError as e:
+                print(f"Failed to create directory {base_path}/{folderName}: {e}")
+
+            # Update acquisition object
+            acquisitionObject.evidence_id = evidence.evidence_id
+            acquisitionObject.connection_type = connection_type
+            acquisitionObject.full_path = f"{base_path}/{folderName}"
+            acquisitionObject.client_ip = data.get('client_ip') if data.get('client_ip') != "USB" else ""  # Handle optional fields safely
+            acquisitionObject.port = data.get('port') if data.get('port') != "USB" else ""
+            acquisitionObject.status = "in_progress"
+
+            # Save the updated acquisition object
+            acquisitionObject.save()
+
+            print("POST Data ->", data)
+            return HttpResponse("Task started..")
 
 
 class GenerateUniqueCodeView(View):
-    @method_decorator(login_required(login_url='caf_login'))
     def get(self, request, serial_id, acquire_method):
         # Check if the device is valid
         isDevice = ColdForensic().checkSerialID(serial_id)
         if isDevice:
+
+            device = serial_id
+            if len(serial_id) > 15 and ColdForensic().checkSerialID(serial_id):
+                device = ColdForensic().decrypt(serial_id, ColdForensic().secret_key)
+
             # Generate and save the new Acquisition process
             unique_code = uuid.uuid4()
             Acquisition.objects.create(
                 device_id=serial_id,
                 unique_link=unique_code,
-                acquisition_type=acquire_method
+                acquisition_type=acquire_method,
+                serial_number=ColdForensic().decode_bytes_property(ColdForensic().getProp(device, 'ro.serialno', 'unknown')),
             )
             return JsonResponse({'success': True, 'unique_code': str(unique_code)})
         else:

@@ -1,0 +1,23 @@
+<div class="PA-progress">
+
+    Application List:
+    {% for appList in acquisitionObject.selective_full_file_system.selected_applications %}
+        {{ appList }} |
+    {% endfor %}
+    
+    <br>
+    <br>
+    Save path: {{ acquisitionObject.full_path }}
+
+    <div class="text-center loader-spin" id="spinnerLoader">
+      <div class="spinner-border text-info m-5" style="width: 5rem; height: 5rem;">
+      </div>
+    </div>
+
+    <div class="form-group col-md-12">
+        Please wait until the acquisition is finished.
+        <br>
+        Note: This may take a while and please do not close the browser.
+    </div>
+
+</div>

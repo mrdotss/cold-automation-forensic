@@ -39,6 +39,37 @@ class CustomUserManager(UserManager):
         """
         extra_fields.setdefault('is_staff', True)
         extra_fields.setdefault('is_superuser', True)
+
+        if extra_fields.get('is_staff') is not True:
+            raise ValueError('Superuser must have is_staff=True.')
+        if extra_fields.get('is_superuser') is not True:
+            raise ValueError('Superuser must have is_superuser=True.')
+
+        # Prompt for additional fields
+        extra_fields['user_name'] = input("Enter user name: ")
+
+        # Role selection with numeric choices
+        roles = [('Investigator', 'Investigator'),
+                 ('Forensics Analyst', 'Forensics Analyst'),
+                 ('Lab Technician', 'Lab Technician')]
+
+        print("Choose a role:")
+        for i, (value, display) in enumerate(roles, start=1):
+            print(f"{i}. {display}")
+
+        role_choice = input("Enter the number for the role: ")
+
+        try:
+            role_index = int(role_choice) - 1
+            if 0 <= role_index < len(roles):
+                extra_fields['user_roles'] = roles[role_index][0]
+            else:
+                raise ValueError("Invalid choice. Please choose a valid role number.")
+        except ValueError:
+            raise ValueError("Invalid input. Please enter a number corresponding to the role.")
+
+        extra_fields['user_phone'] = input("Enter user phone: ")
+
         return self._create_user(user_email, password, **extra_fields)
 
     def create_user(self, user_email=None, password=None, **extra_fields):
@@ -94,7 +125,7 @@ class User(AbstractBaseUser, PermissionsMixin):
         return self.user_name.split(' ')[0] or self.user_name.split('@')[0]
 
     def __str__(self):
-        return self.user_name
+        return f"{self.user_name} - {self.user_email}"
 
 
 class Case(models.Model):
@@ -133,6 +164,7 @@ class Evidence(models.Model):
 class Acquisition(models.Model):
     ACQUISITION_TYPE_CHOICES = [
         ('full_file_system', 'Full File System'),
+        ('selective_full_file_system', 'Full File System (Selective)'),
         ('logical', 'Logical'),
         ('physical', 'Physical'),
     ]
@@ -141,6 +173,7 @@ class Acquisition(models.Model):
         ('in_progress', 'In Progress'),
         ('completed', 'Completed'),
         ('paused', 'Paused'),
+        ('cancelled', 'Cancelled'),
         ('failed', 'Failed'),
         ('error', 'Error'),
     ]
@@ -151,10 +184,11 @@ class Acquisition(models.Model):
 
     acquisition_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     evidence = models.ForeignKey(Evidence, on_delete=models.CASCADE, related_name='acquisitions', null=True, blank=True)
+    serial_number = models.CharField(max_length=50, null=True, blank=True)
     connection_type = models.CharField(max_length=10, choices=CONNECTION_CHOICES, default='USB')
     client_ip = models.GenericIPAddressField(protocol='IPv4', blank=True, null=True)
     port = models.PositiveIntegerField(blank=True, null=True)
-    acquisition_type = models.CharField(blank=True, null=True, max_length=20, choices=ACQUISITION_TYPE_CHOICES)
+    acquisition_type = models.CharField(blank=True, null=True, max_length=30, choices=ACQUISITION_TYPE_CHOICES)
     status = models.CharField(max_length=20, choices=ACQUISITION_STATUS_CHOICES, default='pending')
     device_id = models.CharField(max_length=50, null=True, blank=True)
     file_name = models.CharField(max_length=255, null=True, blank=True)
@@ -191,25 +225,22 @@ class PhysicalAcquisition(models.Model):
         return f"Physical Details for {self.acquisition}"
 
 
-class LogicalAcquisition(models.Model):
+class SelectiveFullFileSystemAcquisition(models.Model):
     acquisition = models.OneToOneField(
         Acquisition,
         on_delete=models.CASCADE,
         primary_key=True,
-        related_name='logical'
+        related_name='selective_full_file_system'
     )
-    data_types_acquired = JSONField(null=True, blank=True)
     selected_applications = JSONField(null=True, blank=True)
-    selected_files = JSONField(null=True, blank=True)
-    user_accounts = JSONField(null=True, blank=True)
     total_records = models.IntegerField(null=True, blank=True)
-    hash_result = models.CharField(max_length=64, null=True, blank=True)
+    hash_result = models.TextField(null=True, blank=True)
     acquisition_tool = models.CharField(max_length=100, null=True, blank=True)
     start_time = models.DateTimeField(null=True, blank=True)
     end_time = models.DateTimeField(null=True, blank=True)
 
     def __str__(self):
-        return f"Logical Details for {self.acquisition}"
+        return f"Selective FFS Details for {self.acquisition}"
 
 
 class FullFileSystemAcquisition(models.Model):

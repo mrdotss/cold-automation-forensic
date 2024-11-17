@@ -57,7 +57,7 @@
     
                           <button class="btn btn-light"
                          data-serial-id="{{ serial_id }}" data-toggle="modal"
-                         data-target="#ffsModal-{{ serial_id }}">Full File System</button>&nbsp;&nbsp;
+                         data-target="#ffsModal-{{ serial_id }}">Full File System (Selective)</button>&nbsp;&nbsp;
                       </span>
                   {% else %}
                       <span class="d-inline-block" data-toggle="tooltip"
@@ -75,7 +75,7 @@
     
                           <button class="btn btn-light"
                          data-serial-id="{{ serial_id }}" data-toggle="modal"
-                         data-target="#ffsModal-{{ serial_id }}" disabled>Full File System</button>&nbsp;&nbsp;
+                         data-target="#ffsModal-{{ serial_id }}" disabled>Full File System (Selective)</button>&nbsp;&nbsp;
                       </span>
                   {% endif %}
               
@@ -324,7 +324,7 @@
             </button>
           </div>
           <div class="modal-body">
-            <p>Are you sure want to full file system acquisition this devices?<br>deviceID: {{ serial_id }}</p>
+            <p>Are you sure want to full file system (selective) acquisition this devices?<br>deviceID: {{ serial_id }}</p>
           </div>
           <div class="modal-footer bg-whitesmoke br">
             <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
@@ -403,7 +403,7 @@
         });
         
         document.getElementById('goFullFileSystemAcquisition').addEventListener('click', function() {
-            fetch('/device/acquisition/{{ serial_id }}/generate-unique-code/full-file-system')
+            fetch('/device/acquisition/{{ serial_id }}/generate-unique-code/selective_full_file_system')
             .then(response => response.json())
             .then(data => {
                 if(data.success && data.unique_code) {
