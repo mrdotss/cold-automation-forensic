@@ -10,10 +10,11 @@
     <form class="form-row" action="" method="post" id="location-form">
         {% csrf_token %}
       <div class="form-group col-md-6">
-        <label for="full_path">Full Path</label>
+        <label for="full_path">Save Path</label>
         <span class="d-inline-block" data-toggle="tooltip"
-              data-title="Fill the path to match your server directory or worker directory."><i class="fas fa-question-circle"></i></span>
-        <input type="text" name="full_path" class="form-control" id="full_path" placeholder="Ex: /mnt/c/folder/another_folder">
+              data-title="The default location is the 'CAF' folder within the '~Documents' directory.
+              For a manual save location, you can type the full path. For example: `/mnt/c/folder/another_folder`"><i class="fas fa-question-circle"></i></span>
+        <input type="text" name="full_path" class="form-control" id="full_path" placeholder="Leave it blank to use default folder">
     </div>
      <div class="form-group col-md-6">
         <label for="file_name">File Name Is Automatically Set</label>

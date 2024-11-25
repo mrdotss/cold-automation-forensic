@@ -1,8 +1,8 @@
-from django.http import JsonResponse, HttpResponse, Http404
+from django.http import JsonResponse, HttpResponse
 from django.shortcuts import render
 from .ColdForensic import ColdForensic
 from .ADBCore import ADBCore
-import json, re, logging, os
+import json, re, logging
 from apps.home.models import Acquisition
 
 logger = logging.getLogger(__name__)

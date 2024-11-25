@@ -1,12 +1,11 @@
 from django.http import JsonResponse
 from .data_helper import ChatData, Screen, Battery, Network, DeviceProperties
 from .ADBCore import ADBCore
-import dataclasses
 import base64
 import time
 import re, os
 import logging
-from apps.home.models import Acquisition
+
 
 class ColdForensic:
     def __init__(self):
@@ -330,9 +329,6 @@ class ColdForensic:
                 network['connected'] = True
                 network['ssid'] = match.group(1)
 
-        # Print the extracted network information
-        print("Network Info:", network)
-
         # Assuming Network is a class you defined somewhere
         return Network(
             connected=network['connected'],
@@ -365,7 +361,6 @@ class ColdForensic:
                     break
 
             if not self.checkSerialID(id_or_not):
-                print("Device not found")
                 return JsonResponse({'message': "404 Not Found"}, status=404)
 
             encrypted_id_or_not = None
@@ -436,7 +431,6 @@ class ColdForensic:
             return None  # Handle errors appropriately
 
         hash_output = out.strip().split()[0]
-        print("Hash:", hash_output)
 
         return hash_output
 

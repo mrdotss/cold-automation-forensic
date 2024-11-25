@@ -11,6 +11,8 @@ from apps.caf.cold_action import adb_instance
 from apps.home.models import Acquisition, SelectiveFullFileSystemAcquisition
 from core.celery import app
 from apps.caf.ColdForensic import ColdForensic
+import shlex
+
 
 __all__ = ('app',)
 logger = logging.getLogger(__name__)
@@ -28,6 +30,7 @@ def physicalAcquisition(group_name, unique_link):
 
     LOCATION = getAcquisitionObject.full_path
     FILE_NAME = getAcquisitionObject.file_name
+
     PARTITION = getAcquisitionObject.physical.partition_id
     BRIDGE = getAcquisitionObject.connection_type
 
@@ -190,12 +193,12 @@ def physicalAcquisition(group_name, unique_link):
         # Start the android_process first
         android_process = subprocess.Popen(android_command, shell=True)
         time.sleep(2)
-
+        fullPath = shlex.quote(LOCATION + '/' + FILE_NAME)
         # Construct the server_command with -q option (if supported)
         if seek_skip_block > 0:
-            server_command = f"netcat {IP} {PORT_CLIENT} -q 1 | dd of={LOCATION}/{FILE_NAME} bs={bs} seek={seek_blocks} conv=fsync"
+            server_command = f"netcat {IP} {PORT_CLIENT} -q 1 | dd of={fullPath} bs={bs} seek={seek_blocks} conv=fsync"
         else:
-            server_command = f"netcat {IP} {PORT_CLIENT} -q 1 | dd of={LOCATION}/{FILE_NAME} bs={bs} conv=fsync"
+            server_command = f"netcat {IP} {PORT_CLIENT} -q 1 | dd of={fullPath} bs={bs} conv=fsync"
 
         print(f'Server Command: {server_command}')
 
@@ -584,7 +587,7 @@ def selectiveFfsAcquisition(group_name, unique_link):
         for index, package_name in enumerate(package_names, start=1):
             acquisition_target = package_name
             file_name = f"{package_name}_backup.tar.gz"
-            destination_path = os.path.join(LOCATION, file_name)
+            destination_path = shlex.quote(LOCATION + '/' + file_name)
 
             async_to_sync(channel_layer.group_send)(
                 group_name,
@@ -754,9 +757,12 @@ def compute_sha256_hash(file_path):
 @shared_task
 def safe_open(file_path, attempts=5, delay=2):
     """Attempt to open a file with retries."""
+    # Strip surrounding quotes if they exist
+    sanitized_path = file_path.strip("'").strip('"')  # Remove unnecessary single or double quotes
     for attempt in range(attempts):
         try:
-            return open(file_path, 'rb')
+            # Open the sanitized path
+            return open(sanitized_path, 'rb')
         except IOError as e:
             print(f"Attempt {attempt+1}: Unable to open file - {e}")
             time.sleep(delay)

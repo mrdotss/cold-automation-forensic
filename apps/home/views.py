@@ -12,11 +12,12 @@ from django.core.serializers.json import DjangoJSONEncoder
 from django.views.generic import ListView, CreateView, UpdateView, DeleteView
 
 from ..caf.ColdForensic import ColdForensic
-from .models import Case, User, Evidence, Acquisition, PhysicalAcquisition, FullFileSystemAcquisition, SelectiveFullFileSystemAcquisition
+from .models import Case, User, Evidence, Acquisition, PhysicalAcquisition, SelectiveFullFileSystemAcquisition
 from .forms import CaseUpdateForm, EvidenceUpdateForm, ChainOfCustodyForm, AdditionalInfoForm
 from apps.home.asynchronous.task import physicalAcquisition, selectiveFfsAcquisition
 import time, random, string, json, uuid, os
 from datetime import datetime
+from pathlib import Path
 
 
 class UUIDEncoder(DjangoJSONEncoder):
@@ -404,7 +405,6 @@ class EvidenceUpdateView(UpdateView):
                         'action': chain_of_custody_form.cleaned_data.get('action'),
                         'detail': chain_of_custody_form.cleaned_data.get('detail')
                     }
-                    print("Isi COC ->", coc_data)
                     chain_of_custody_data.append(coc_data)
 
             self.object.evidence_chain_of_custody = chain_of_custody_data
@@ -610,6 +610,7 @@ class AcquisitionSetup(View):
                 'partitionList': partitionList,
                 'acquisitionProcess': acquisitionObject,
                 'acquisitionHistory': acquisitionHistory,
+                'acquisitionModalHistory': acquisitionList,
                 'isWifi': isWifi,
                 'ipAddress': ColdForensic().decrypt(serial_id, ColdForensic().secret_key).split(':')[0]
             }
@@ -633,7 +634,7 @@ class AcquisitionSetup(View):
 
         if acquisitionObject.acquisition_type == "physical":
             # Get current time
-            current_time = time.strftime("%Y%m%d%H%M%S")
+            current_time = datetime.now().strftime("%Y-%m-%d %Hh%Mm%Ss")
 
             # Generate a random string for unique identifier
             unique_id = ''.join(random.choices(string.ascii_lowercase + string.digits, k=5))
@@ -670,32 +671,53 @@ class AcquisitionSetup(View):
                 physical_acquisition.source_device = f"/dev/block/{data['partition_id']}"
                 physical_acquisition.save()
 
-            base_path = data['full_path']
-            # Generate a unique and structured folder name
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            random_suffix = ''.join(random.choices(string.ascii_lowercase + string.digits, k=6))
-            folderName = f"evidence_{timestamp}_{random_suffix}"
+            # Check if a custom path is provided
+            if not data.get('full_path'):  # Safely handle missing or empty 'full_path'
+                # Determine the default Documents directory for the user
+                documents_dir = Path.home() / "Documents"
 
+                # Create the CAF directory if it doesn't exist
+                caf_dir = documents_dir / "CAF"
+                caf_dir.mkdir(parents=True, exist_ok=True)
+            else:
+                # Use the provided path
+                caf_dir = Path(data['full_path'])
+
+            # Handle serial_id and device processing
+            device = serial_id
+            cold_forensic = ColdForensic()
+            if len(serial_id) > 15 and cold_forensic.checkSerialID(serial_id):
+                device = cold_forensic.decrypt(serial_id, cold_forensic.secret_key)
+
+            # Get phone type or use default 'unknown'
+            phone_type = cold_forensic.decode_bytes_property(
+                cold_forensic.getProp(device, 'ro.product.model', 'unknown')
+            )
+
+            # Create a unique and structured folder name
+            folder_name = f"{phone_type} ({datetime.now().strftime('%Y-%m-%d %Hh%Mm%Ss')})"
+            extraction_path = caf_dir / folder_name
+
+            # Attempt to create the folder
             try:
-                os.makedirs(f"{base_path}/{folderName}", exist_ok=True)
-                print(f"Folder created at {base_path}/{folderName}")
+                extraction_path.mkdir(parents=True, exist_ok=True)
+                print(f"Folder created at {extraction_path}")
             except OSError as e:
-                print(f"Failed to create directory {base_path}/{folderName}: {e}")
+                print(f"Failed to create directory {extraction_path}: {e}")
 
             acquisitionObject.evidence_id = evidence.evidence_id
             acquisitionObject.connection_type = connection_type
-            acquisitionObject.full_path = f"{base_path}/{folderName}"
+            acquisitionObject.full_path = str(extraction_path)
             acquisitionObject.file_name = acquisition_file_name
 
             acquisitionObject.client_ip = data.get('client_ip') if data.get('client_ip') != "USB" else ""  # Handle optional fields safely
             acquisitionObject.port = data.get('port') if data.get('port') != "USB" else ""
             acquisitionObject.status = "in_progress"
-            acquisitionObject.size = round(int(data['partition_size']) / 1000000, 2)
+            acquisitionObject.size = acquisition_size_template
 
             # Save the updated acquisition object
             acquisitionObject.save()
 
-            print("POST Data ->", data)
             return HttpResponse("Task started..")
 
         elif acquisitionObject.acquisition_type == "selective_full_file_system":
@@ -733,22 +755,44 @@ class AcquisitionSetup(View):
                 selective_ffs_acquisition.total_records = len(json.loads(data['app_list']))
                 selective_ffs_acquisition.save()
 
-            base_path = data['full_path']
-            # Generate a unique and structured folder name
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            random_suffix = ''.join(random.choices(string.ascii_lowercase + string.digits, k=6))
-            folderName = f"evidence_{timestamp}_{random_suffix}"
+            # Check if a custom path is provided
+            if not data.get('full_path'):  # Safely handle missing or empty 'full_path'
+                # Determine the default Documents directory for the user
+                documents_dir = Path.home() / "Documents"
 
+                # Create the CAF directory if it doesn't exist
+                caf_dir = documents_dir / "CAF"
+                caf_dir.mkdir(parents=True, exist_ok=True)
+            else:
+                # Use the provided path
+                caf_dir = Path(data['full_path'])
+
+            # Handle serial_id and device processing
+            device = serial_id
+            cold_forensic = ColdForensic()
+            if len(serial_id) > 15 and cold_forensic.checkSerialID(serial_id):
+                device = cold_forensic.decrypt(serial_id, cold_forensic.secret_key)
+
+            # Get phone type or use default 'unknown'
+            phone_type = cold_forensic.decode_bytes_property(
+                cold_forensic.getProp(device, 'ro.product.model', 'unknown')
+            )
+
+            # Create a unique and structured folder name
+            folder_name = f"{phone_type} ({datetime.now().strftime('%Y-%m-%d %Hh%Mm%Ss')})"
+            extraction_path = caf_dir / folder_name
+
+            # Attempt to create the folder
             try:
-                os.makedirs(f"{base_path}/{folderName}", exist_ok=True)
-                print(f"Folder created at {base_path}/{folderName}")
+                extraction_path.mkdir(parents=True, exist_ok=True)
+                print(f"Folder created at {extraction_path}")
             except OSError as e:
-                print(f"Failed to create directory {base_path}/{folderName}: {e}")
+                print(f"Failed to create directory {extraction_path}: {e}")
 
             # Update acquisition object
             acquisitionObject.evidence_id = evidence.evidence_id
             acquisitionObject.connection_type = connection_type
-            acquisitionObject.full_path = f"{base_path}/{folderName}"
+            acquisitionObject.full_path = str(extraction_path)
             acquisitionObject.client_ip = data.get('client_ip') if data.get('client_ip') != "USB" else ""  # Handle optional fields safely
             acquisitionObject.port = data.get('port') if data.get('port') != "USB" else ""
             acquisitionObject.status = "in_progress"
@@ -756,7 +800,6 @@ class AcquisitionSetup(View):
             # Save the updated acquisition object
             acquisitionObject.save()
 
-            print("POST Data ->", data)
             return HttpResponse("Task started..")
 
 

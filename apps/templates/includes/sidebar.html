@@ -11,13 +11,13 @@
           <li {% if request.path == '/' %} class="active" {% endif %}><a class="nav-link" href="{% url 'dashboard' %}"><i class="fas fa-fire"></i> <span>Dashboard</span></a></li>
 
           <li class="menu-header">Menu</li>
-          <li {% if request.path == '/case/' %} class="active" {% endif %}><a class="nav-link" href="{% url 'cases_home' %}"><i class="ion ion-ios-paper-outline" data-pack="ios" data-tags="feed, paper"></i> <span>Case</span></a></li>
-          <li {% if request.path == '/evidence/' %} class="active" {% endif %}><a class="nav-link" href="{% url 'evidences_home' %}"><i class="fas fa-fingerprint"></i> <span>Evidence</span></a></li>
+          <li {% if '/case' in request.path %} class="active" {% endif %}><a class="nav-link" href="{% url 'cases_home' %}"><i class="ion ion-ios-paper-outline" data-pack="ios" data-tags="feed, paper"></i> <span>Case</span></a></li>
+          <li {% if '/evidence' in request.path %} class="active" {% endif %}><a class="nav-link" href="{% url 'evidences_home' %}"><i class="fas fa-fingerprint"></i> <span>Evidence</span></a></li>
 {#          <li {% if request.path == '/analyst-report/' %} class="disabled" {% endif %}><a class="nav-link disabled" href="{% url 'report_analyst_home' %}"><i class="far fa-chart-bar"></i> <span>Reports [SOON]</span></a></li>#}
           <li class="disabled" ><a class="nav-link disabled" href="{% url 'report_analyst_home' %}"><i class="far fa-chart-bar"></i> <span>Reports [SOON]</span></a></li>
 
           <li class="menu-header">Lab</li>
-          <li  {% if request.path == '/device/' %} class="active" {% endif %}><a class="nav-link" href="{% url 'devices_home' %}"><i class="ion ion-android-phone-portrait" data-pack="android" data-tags=""></i><span>Device [BETA]</span></a></li>
+          <li  {% if '/device' in request.path %} class="active" {% endif %}><a class="nav-link" href="{% url 'devices_home' %}"><i class="ion ion-android-phone-portrait" data-pack="android" data-tags=""></i><span>Device [BETA]</span></a></li>
       </ul>
     </aside>
 </div>

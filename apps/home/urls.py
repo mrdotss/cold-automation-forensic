@@ -15,7 +15,6 @@ urlpatterns = [
 
     # The evidence page
     path('evidence/', views.EvidenceListView.as_view(), name='evidences_home'),
-
     path('evidence/create', views.EvidenceCreateView.as_view(), name='evidences_create'),
     path('evidence/update/<uuid:evidence_id>', views.EvidenceUpdateView.as_view(), name='evidences_update'),
     path('evidence/<uuid:evidence_id>/delete', views.EvidenceDeleteView.as_view(), name='evidences_delete'),
