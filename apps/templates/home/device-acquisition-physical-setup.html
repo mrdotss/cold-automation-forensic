@@ -320,15 +320,16 @@
                                 success: function (data) {
                                     console.log("Hasil data:", data);
                                     console.log("Selected partition:", columns[0]);
+
+                                    // Data has been saved, and task has been initiated
+                                    // Now establish WebSocket connection or proceed as needed
+                                    establishWebSocketConnection();
                                 },
                                 error: function(err) {
                                     console.log("Error:", err);
                                 }
                             });
                             $('#location-form').fadeOut();
-
-                            // Establish WebSocket connection
-                            establishWebSocketConnection();
                         });
                     });
                 });

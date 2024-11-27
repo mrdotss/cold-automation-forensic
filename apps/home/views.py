@@ -10,6 +10,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.shortcuts import render, get_object_or_404, redirect
 from django.core.serializers.json import DjangoJSONEncoder
 from django.views.generic import ListView, CreateView, UpdateView, DeleteView
+from django.db import transaction
 
 from ..caf.ColdForensic import ColdForensic
 from .models import Case, User, Evidence, Acquisition, PhysicalAcquisition, SelectiveFullFileSystemAcquisition
@@ -232,30 +233,30 @@ def get_evidence_acquisition_history(request, evidence_id):
     evidence = Evidence.objects.get(evidence_id=evidence_id)
     return render(request, 'includes/evidence_acquisition_history.html', {'acquisition': acquisition, 'evidence': evidence})
 
-def get_acquisition_presetup(request, serial_id, unique_link):
+def start_acquisition_task(unique_link):
     acquisitionObject = Acquisition.objects.get(unique_link=unique_link)
 
-    print(f"Serial: {serial_id} | Unique: {unique_link} | Object: {acquisitionObject}")
+    # Ensure necessary data is present before starting the task
+    if not acquisitionObject.full_path and acquisitionObject.file_name:
+        # Handle the error or wait until data is available
+        print("Data not ready for acquisition")
+        return
 
-    if acquisitionObject.status in ["in_progress", "pending", "failed", "cancelled"]:
+    if acquisitionObject.status in ["failed", "cancelled"]:
+        # Resume the failed acquisition
+        acquisitionObject.status = "in_progress"
+        acquisitionObject.save()
 
-        if acquisitionObject.status in ["failed", "cancelled"]:
-            # Resume the failed acquisition
-            acquisitionObject.status = "in_progress"
-            acquisitionObject.save()
+    if acquisitionObject.acquisition_type == "physical":
+        result = physicalAcquisition.delay('acquisition-progress_%s' % unique_link, unique_link)
+        print("Task started with status ->", result.status)
+    elif acquisitionObject.acquisition_type == "selective_full_file_system":
+        result = selectiveFfsAcquisition.delay('acquisition-progress_%s' % unique_link, unique_link)
+        print("Task started with status ->", result.status)
 
-        if acquisitionObject.acquisition_type == "physical":
-            result = physicalAcquisition.delay('acquisition-progress_%s' % unique_link, unique_link)
 
-            if result.failed():
-                print("Failed ->", result.traceback)
-        elif acquisitionObject.acquisition_type == "selective_full_file_system":
-            result = selectiveFfsAcquisition.delay('acquisition-progress_%s' % unique_link, unique_link)
-
-            if result.failed():
-                print("Failed ->", result.traceback)
-
-        print("Status ->", result.status)  # This will print the current status of the task
+def get_acquisition_presetup(request, serial_id, unique_link):
+    acquisitionObject = Acquisition.objects.get(unique_link=unique_link)
 
     if ColdForensic().checkSerialID(serial_id) and acquisitionObject:
         return render(request, 'includes/acquisition_setup.html', {})
@@ -589,6 +590,8 @@ class AcquisitionSetup(View):
                     'ipAddress': ColdForensic().decrypt(serial_id, ColdForensic().secret_key).split(':')[0]
                 }
 
+            start_acquisition_task(acquisitionObject.unique_link)
+
             return render(request, 'home/device-acquisition-resume.html', context)
 
         if acquisitionObject.status in ["completed"]:
@@ -619,14 +622,14 @@ class AcquisitionSetup(View):
 
     def post(self, request, serial_id, unique_code):
         isDevice = ColdForensic().checkSerialID(serial_id)
-        acquisitionObject = Acquisition.objects.filter(unique_link=unique_code).first()
+        acquisitionObject = Acquisition.objects.get(unique_link=unique_code)
 
         if not isDevice or not acquisitionObject:
             return HttpResponse("Device or acquisition process not found")
 
         data = {key: value for key, value in request.POST.items() if key != 'csrfmiddlewaretoken'}
 
-        # Check if the device is connected via WiFi or USB
+        # Check if the device is connected via Wi-Fi or USB
         isHashedIP = ColdForensic().is_hashed_ip_or_not(serial_id)
         isWifi = ColdForensic().check_if_hashed_ip(serial_id, ColdForensic().secret_key) if isHashedIP else False
 
@@ -718,6 +721,9 @@ class AcquisitionSetup(View):
             # Save the updated acquisition object
             acquisitionObject.save()
 
+            # Start the task after transaction commits
+            transaction.on_commit(lambda: start_acquisition_task(acquisitionObject.unique_link))
+
             return HttpResponse("Task started..")
 
         elif acquisitionObject.acquisition_type == "selective_full_file_system":
@@ -763,6 +769,7 @@ class AcquisitionSetup(View):
                 # Create the CAF directory if it doesn't exist
                 caf_dir = documents_dir / "CAF"
                 caf_dir.mkdir(parents=True, exist_ok=True)
+
             else:
                 # Use the provided path
                 caf_dir = Path(data['full_path'])
@@ -799,6 +806,9 @@ class AcquisitionSetup(View):
 
             # Save the updated acquisition object
             acquisitionObject.save()
+
+            # Start the task after transaction commits
+            transaction.on_commit(lambda: start_acquisition_task(acquisitionObject.unique_link))
 
             return HttpResponse("Task started..")
 

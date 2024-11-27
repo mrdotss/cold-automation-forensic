@@ -353,18 +353,12 @@
 
                             const form = $(this);
 
-                            // Log form and form[0] for debugging
-                            console.log("Form element:", form);
-                            console.log("Form[0] element:", form[0]);
-
                             // Create a new FormData object using a unique variable name
                             const formPayload = new FormData(form[0]);
 
                             // Add the additional fields
                             formPayload.append("serial_id", "{{ serial_id }}");
                             formPayload.append("app_list", JSON.stringify(columns)); // Convert columns to JSON and include directly
-
-                            console.log("Final form data for POST:", formPayload);
 
                             const CSRF_TOKEN = getCookie('csrftoken');
 
@@ -380,15 +374,15 @@
                                 success: function (data) {
                                     console.log("Hasil data:", data);
                                     console.log("Selected apps:", columns);
+                                    
+                                    // Establish WebSocket connection
+                                    establishWebSocketConnection();
                                 },
                                 error: function (err) {
                                     console.log("Error:", err);
                                 }
                             });
                             $('#location-form').fadeOut();
-
-                            // Establish WebSocket connection
-                            establishWebSocketConnection();
                         });
                     });
                 });

@@ -186,9 +186,6 @@
 
     <script>
         $(document).ready(function() {
-            const $tableContainer  = $('.card-1st'); // This is an example element for your acquisition setup
-            const $checkbox = $('#gridCheck');
-            
             // Check acquisition status on load
             const acquisitionStatus = '{{ acquisitionProcess.status }}';
             const transferredBytes = '{{ acquisitionProcess.physical.total_transferred_bytes }}';

@@ -193,6 +193,7 @@ def physicalAcquisition(group_name, unique_link):
         # Start the android_process first
         android_process = subprocess.Popen(android_command, shell=True)
         time.sleep(2)
+
         fullPath = shlex.quote(LOCATION + '/' + FILE_NAME)
         # Construct the server_command with -q option (if supported)
         if seek_skip_block > 0:
