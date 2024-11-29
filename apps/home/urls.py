@@ -31,7 +31,7 @@ urlpatterns = [
     path('device/acquisition/<str:serial_id>/generate-unique-code/<str:acquire_method>', views.GenerateUniqueCodeView.as_view(), name='generate_unique_code'),
 
     ## No Class
-    path('evidence/<uuid:evidence_id>/modal_data', views.get_evidence_modal_data, name='get_evidence_modal_data'),
+    path('evidence/<uuid:evidence_id>/coc', views.get_evidence_coc, name='get_evidence_coc'),
 path('evidence/<uuid:evidence_id>/acquisition_history', views.get_evidence_acquisition_history, name='get_evidence_acquisition_history'),
     path('acquisition-setup/<str:serial_id>/save-location/<uuid:unique_link>', views.get_acquisition_save_location,
          name='device_acquisition_save_location'),

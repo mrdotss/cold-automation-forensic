@@ -1,0 +1,16 @@
+{% for coc_item in chain_of_custody %}
+    <div class="activity">
+        <div class="activity-icon bg-primary text-white shadow-primary">
+            <i class="fas fa-arrows-alt"></i>
+        </div>
+        <div class="activity-detail">
+            <div class="mb-2">
+                <span class="text-job">{{ coc_item.date }}</span>
+                <span class="bullet"></span>
+                <a class="text-job" href="#">{{ coc_item.user }}</a>
+            </div>
+            <p>{{ coc_item.action }}.</p>
+            <p>{{ coc_item.detail }}</p>
+        </div>
+    </div>
+{% endfor %}

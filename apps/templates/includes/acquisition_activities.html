@@ -1,0 +1,17 @@
+<div class="modal fade" tabindex="-1" role="dialog" id="historyModal-{{ evidence.evidence_id }}">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Acquisition History for Evidence Number: {{ evidence.evidence_number }}</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body" data-total="{{ acquisition_count }}" style="max-height: 600px; overflow-y: auto;">
+        <div class="activities">
+          {% include 'includes/evidence_acquisition_history.html' %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

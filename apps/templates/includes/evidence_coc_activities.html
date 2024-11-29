@@ -1,0 +1,21 @@
+<div class="modal fade" tabindex="-1" role="dialog" id="exampleModal-{{ evidence.evidence_id }}">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Chain of Custody</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body" data-total="{{ coc_count }}" style="max-height: 500px; overflow-y: auto;">
+        <div class="row">
+          <div class="col-12">
+            <div class="activities">
+                {% include 'includes/evidence_coc.html' %}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

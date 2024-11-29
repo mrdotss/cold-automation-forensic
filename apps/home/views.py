@@ -217,21 +217,72 @@ class CaseDeleteView(DeleteView):
     def get_success_url(self):
         return reverse_lazy('cases_home')
 
+def is_ajax(request):
+    return request.headers.get('x-requested-with') == 'XMLHttpRequest'
 
 def get_case_members(request, case_id):
     case = get_object_or_404(Case, case_id=case_id)
     members = case.case_member.all().values('id', 'user_name', 'user_roles')
     return JsonResponse(list(members), safe=False)
 
+def get_evidence_coc(request, evidence_id):
+    offset = int(request.GET.get('offset', 0))
+    limit = int(request.GET.get('limit', 10))
 
-def get_evidence_modal_data(request, evidence_id):
     evidence = Evidence.objects.get(evidence_id=evidence_id)
-    return render(request, 'includes/evidence_modal.html', {'evidence': evidence})
+    chain_of_custody_data = evidence.evidence_chain_of_custody
+
+    # Since chain_of_custody_data is already a list, use it directly
+    if isinstance(chain_of_custody_data, list):
+        chain_of_custody_list = chain_of_custody_data
+    else:
+        # Handle the case where it's a string (if necessary)
+        try:
+            chain_of_custody_list = json.loads(chain_of_custody_data)
+        except (json.JSONDecodeError, TypeError):
+            chain_of_custody_list = []
+
+    coc_count = len(chain_of_custody_list)
+    chain_of_custody = chain_of_custody_list[offset:offset + limit]
+
+    if is_ajax(request) and request.GET.get('isLoaded') != 'true':
+        context = {
+            'chain_of_custody': chain_of_custody,
+            'evidence': evidence,
+            'coc_count': coc_count
+        }
+        return render(request, 'includes/evidence_coc_activities.html', context)
+    elif request.GET.get('isLoaded') == 'true':
+        context = {
+            'evidence': evidence,
+            'chain_of_custody': chain_of_custody,
+            'coc_count': coc_count,
+        }
+        return render(request, 'includes/evidence_coc.html', context)
 
 def get_evidence_acquisition_history(request, evidence_id):
-    acquisition = Acquisition.objects.filter(evidence=evidence_id)
+    offset = int(request.GET.get('offset', 0))
+    limit = int(request.GET.get('limit', 10))
+
+    acquisition_qs = Acquisition.objects.filter(evidence=evidence_id).order_by('date')
+    acquisition_count = acquisition_qs.count()
+    acquisition = acquisition_qs[offset:offset + limit]
     evidence = Evidence.objects.get(evidence_id=evidence_id)
-    return render(request, 'includes/evidence_acquisition_history.html', {'acquisition': acquisition, 'evidence': evidence})
+
+    if is_ajax(request) and request.GET.get('isLoaded') != 'true':
+        # Return partial HTML for AJAX requests
+        print(f'Original {acquisition_count} acquisition records')
+        context = {'acquisition': acquisition, 'evidence': evidence, 'acquisition_count': acquisition_count}
+        return render(request, 'includes/acquisition_activities.html', context)
+    elif request.GET.get('isLoaded') == 'true':
+        print(f'Loaded {acquisition_count} acquisition records')
+        # Render full modal for initial load
+        context = {
+            'acquisition': acquisition,
+            'evidence': evidence,
+            'acquisition_count': acquisition_count,
+        }
+        return render(request, 'includes/evidence_acquisition_history.html', context)
 
 def start_acquisition_task(unique_link):
     acquisitionObject = Acquisition.objects.get(unique_link=unique_link)
@@ -367,7 +418,7 @@ class EvidenceUpdateView(UpdateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         user_list = User.objects.all()
-        context['home_user_list'] = json.dumps(list(user_list.values('id', 'user_name')), cls=UUIDEncoder)
+        context['home_user_list'] = json.dumps(list(user_list.values('id', 'user_name', 'user_email')), cls=UUIDEncoder)
 
         ChainOfCustodyFormSet = formset_factory(ChainOfCustodyForm, extra=0)
 

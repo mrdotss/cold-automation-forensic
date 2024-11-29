@@ -115,56 +115,186 @@
 
     <script>
         $(document).ready(function() {
-          $('.confirm-delete-btn').on('click', function() {
-              const evidenceId = $(this).data('evidence-id');
-              $.ajax({
-              url: '/evidence/' + evidenceId + '/delete',
-              type: 'POST',
-              contentType: 'application/json; charset=utf-8',
-              success: function(result) {
-                if (result.success) {
-                  window.location.href = '{% url 'evidences_home' %}';
-                } else {
-                  alert('Error deleting the Evidence');
-                }
-              }
+            $('.confirm-delete-btn').on('click', function() {
+                const evidenceId = $(this).data('evidence-id');
+                $.ajax({
+                    url: '/evidence/' + evidenceId + '/delete',
+                    type: 'POST',
+                    contentType: 'application/json; charset=utf-8',
+                    success: function(result) {
+                        if (result.success) {
+                            window.location.href = '{% url 'evidences_home' %}';
+                        } else {
+                            alert('Error deleting the Evidence');
+                        }
+                    }
+                });
             });
-          });
         });
 
         $(document).ready(function() {
-          $('.log-btn').on('click', function() {
-            const evidenceId = $(this).data('evidence-id');
-            $.ajax({
-              url: '/evidence/' + evidenceId + '/modal_data',
-              type: 'GET',
-              success: function(data) {
-                // The 'data' parameter contains the modal data returned from the server
-                // Generate the modal using this data and append it to the body
-                $('body').append(data);
-                // Show the modal
-                $('#exampleModal-' + evidenceId).modal('show');
-              }
+            $('.log-btn').on('click', function() {
+                const evidenceId = $(this).data('evidence-id');
+                let offset = 0;
+                const limit = 5; // Adjust as needed
+                const modalId = '#exampleModal-' + evidenceId;
+                let isLoading = false;
+                let totalItems = 0;
+                let scrollTimer;
+
+                $(modalId).remove();
+
+                $.ajax({
+                    url: '/evidence/' + evidenceId + '/coc',
+                type: 'GET',
+                data: {
+                        'offset': offset,
+                        'limit': limit
+                },
+                    success: function(html) {
+                        $('body').append(html);
+                        $(modalId).modal('show');
+
+                        const totalItems = parseInt($(modalId).find('.modal-body').data('total'));
+                        offset += limit;
+
+                        $(modalId).find('.modal-body').on('scroll', function() {
+                            clearTimeout(scrollTimer);
+                            const $this = $(this);
+                            const scrollElement = this;
+                            
+                            scrollTimer = setTimeout(function() {
+                                const scrollTop = $this.scrollTop();
+                                const innerHeight = $this.innerHeight();
+                                const scrollHeight = scrollElement.scrollHeight;
+                                const totalScroll = scrollTop + innerHeight;
+                                const threshold = scrollHeight - 50; // Adjust threshold as needed
+
+                                if (totalScroll >= threshold && !isLoading && offset < totalItems) {
+                                    isLoading = true;
+                                    loadMoreCoCData(evidenceId, offset, limit, modalId, function () {
+                                        offset += limit;
+                                        isLoading = false;
+                                    });
+                                }
+                            }, 200); // Debounce delay
+                        });
+                    },
+                    error: function() {
+                        alert('Failed to load chain of custody data.');
+                    }
+                });
             });
-          });
+
+            function loadMoreCoCData(evidenceId, offset, limit, modalId) {
+                $.ajax({
+                    url: '/evidence/' + evidenceId + '/coc',
+                    type: 'GET',
+                    data: {
+                        'offset': offset,
+                        'limit': limit,
+                        'isLoaded': 'true'
+                    },
+                    beforeSend: function() {
+                        $(modalId).find('.activities').append('<div class="text-center spinner-loading" style="width: 30rem;"><div class="spinner-border" role="status"> <span class="sr-only">Loading...</span></div></div>');
+                        },
+                    success: function(html) {
+                        $(modalId).find('.spinner-loading').remove();
+                        $(modalId).find('.activities').append(html);
+                        if (typeof callback === 'function') callback();
+                    },
+                    error: function() {
+                        $(modalId).find('.spinner-loading').remove();
+                        alert('Failed to load more data.');
+                        if (typeof callback === 'function') callback();
+                    }
+                });
+            }
         });
-        
+
         $(document).ready(function() {
-          $('.history-btn').on('click', function() {
-            const evidenceId = $(this).data('evidence-id');
-            $.ajax({
-              url: '/evidence/' + evidenceId + '/acquisition_history',
-              type: 'GET',
-              success: function(data) {
-                // The 'data' parameter contains the modal data returned from the server
-                // Generate the modal using this data and append it to the body
-                $('body').append(data);
-                // Show the modal
-                $('#historyModal-' + evidenceId).modal('show');
-              }
+            $('.history-btn').on('click', function() {
+                const evidenceId = $(this).data('evidence-id');
+                let offset = 0;
+                const limit = 10; // Adjust as needed
+                const modalId = '#historyModal-' + evidenceId;
+                let isLoading = false;
+                let totalItems = 0;
+                let scrollTimer;
+
+                // Remove existing modal if it exists
+                $(modalId).remove();
+
+                // Initial AJAX request to load the modal
+                $.ajax({
+                    url: '/evidence/' + evidenceId + '/acquisition_history',
+                    type: 'GET',
+                    data: {
+                        'offset': offset,
+                        'limit': limit
+                    },
+                    success: function(html) {
+                        $('body').append(html);
+                        $(modalId).modal('show');
+
+                        totalItems = parseInt($(modalId).find('.modal-body').data('total')) || 0;
+                        offset += limit;
+                        
+                        // Set up scroll event listener
+                        $(modalId).find('.modal-body').on('scroll', function() {
+                            clearTimeout(scrollTimer);
+                            const $this = $(this);
+                            const scrollElement = this;
+
+                            scrollTimer = setTimeout(function() {
+                                const scrollTop = $this.scrollTop();
+                                const innerHeight = $this.innerHeight();
+                                const scrollHeight = scrollElement.scrollHeight;
+                                const totalScroll = scrollTop + innerHeight;
+                                const threshold = scrollHeight - 50; // Adjust threshold as needed
+
+                                if (totalScroll >= threshold && !isLoading && offset < totalItems) {
+                                    isLoading = true;
+                                    loadMoreData(evidenceId, offset, limit, modalId, function() {
+                                        offset += limit;
+                                        isLoading = false;
+                                    });
+                                }
+                                }, 200); // Debounce delay
+                                });
+                        },
+                    error: function() {
+                        alert('Failed to load acquisition history.');
+                    }
+                });
             });
-          });
+
+            function loadMoreData(evidenceId, offset, limit, modalId, callback) {
+                $.ajax({
+                    url: '/evidence/' + evidenceId + '/acquisition_history',
+                    type: 'GET',
+                    data: {
+                        'offset': offset,
+                        'limit': limit,
+                        'isLoaded': 'true'
+                    },
+                    beforeSend: function() {
+                        $(modalId).find('.activities').append('<div class="text-center spinner-loading" style="width: 30rem;"><div class="spinner-border" role="status"> <span class="sr-only">Loading...</span></div></div>');
+                        },
+                    success: function(html) {
+                        $(modalId).find('.spinner-loading').remove();
+                        $(modalId).find('.activities').append(html);
+                        if (typeof callback === 'function') callback();
+                        },
+                    error: function() {
+                        $(modalId).find('.spinner-loading').remove();
+                        alert('Failed to load more data.');
+                        if (typeof callback === 'function') callback();
+                    }
+                });
+            }
         });
+
 
     </script>
 {% endblock javascripts %}
