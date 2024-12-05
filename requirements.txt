@@ -20,6 +20,8 @@ constantly
 cryptography
 daphne
 Django
+django-colorfield
+django-easy-audit
 django-redis
 django-admin-interface
 dnspython
