@@ -128,6 +128,12 @@ class User(AbstractBaseUser, PermissionsMixin):
         return f"{self.user_name} - {self.user_email}"
 
 
+class CaseManager(models.Manager):
+    def get_queryset(self):
+        # Override the default queryset to exclude deleted cases
+        return super().get_queryset().filter(is_deleted=False)
+
+
 class Case(models.Model):
     case_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='created_cases')
@@ -137,11 +143,26 @@ class Case(models.Model):
     description = models.TextField(null=True, blank=True) # Just a brief description of the case
     additional_info = JSONField(null=True, blank=True) # Any notes that the user wants to add
     case_is_open = models.BooleanField(default=False)
+    is_deleted = models.BooleanField(default=False)  # Soft delete flag
     created_at = models.DateTimeField(auto_now_add=True)
     last_edited_at = models.DateTimeField(auto_now=True)
 
+    objects = CaseManager()  # Default manager excludes deleted cases
+    all_objects = models.Manager()  # Includes all cases, even deleted
+
     def __str__(self):
         return self.case_name
+
+    def delete(self, using=None, keep_parents=False):
+        # Override the delete method to perform a soft delete
+        self.is_deleted = True
+        self.save()
+
+
+class EvidenceManager(models.Manager):
+    def get_queryset(self):
+        # Override the default queryset to exclude deleted cases
+        return super().get_queryset().filter(is_deleted=False)
 
 
 class Evidence(models.Model):
@@ -154,11 +175,20 @@ class Evidence(models.Model):
     evidence_type = models.CharField(max_length=30)
     evidence_status = models.CharField(max_length=30, default=None)
     evidence_acquired_date = models.DateField(null=True, blank=True)
+    is_deleted = models.BooleanField(default=False)  # Soft delete flag
     created_at = models.DateTimeField(auto_now_add=True)
     last_edited_at = models.DateTimeField(auto_now=True)
 
+    objects = EvidenceManager()  # Default manager excludes deleted cases
+    all_objects = models.Manager()  # Includes all cases, even deleted
+
     def __str__(self):
         return f"{self.evidence_id} - {self.case}"
+
+    def delete(self, using=None, keep_parents=False):
+        # Override the delete method to perform a soft delete
+        self.is_deleted = True
+        self.save()
 
 
 class Acquisition(models.Model):
@@ -183,6 +213,7 @@ class Acquisition(models.Model):
     ]
 
     acquisition_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    examiner = models.ForeignKey(User, on_delete=models.CASCADE, related_name='acquisitions', null=True, blank=True)
     evidence = models.ForeignKey(Evidence, on_delete=models.CASCADE, related_name='acquisitions', null=True, blank=True)
     serial_number = models.CharField(max_length=50, null=True, blank=True)
     connection_type = models.CharField(max_length=10, choices=CONNECTION_CHOICES, default='USB')
@@ -214,6 +245,7 @@ class PhysicalAcquisition(models.Model):
     hash_before_acquisition = models.CharField(max_length=255, null=True, blank=True)
     hash_after_acquisition = models.CharField(max_length=255, null=True, blank=True)
     is_verify_first = models.BooleanField(null=True, blank=True)
+    format_type = models.CharField(max_length=10, null=True, blank=True)
     total_transferred_bytes = models.BigIntegerField(default=0, null=True, blank=True)
     acquisition_method = models.CharField(max_length=50, null=True, blank=True)
     source_device = models.CharField(max_length=100, null=True, blank=True)

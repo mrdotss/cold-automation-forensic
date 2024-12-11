@@ -36,6 +36,7 @@ def physicalAcquisition(group_name, unique_link):
 
     is_usb_connection = BRIDGE.lower() == 'usb'
     is_wifi_connection = BRIDGE.lower() == 'wifi'
+    image_format = getAcquisitionObject.physical.format_type
 
     SERIAL_ID = getAcquisitionObject.device_id if not forensic_core.is_hashed_ip_or_not(getAcquisitionObject.device_id) else forensic_core.decrypt(getAcquisitionObject.device_id, forensic_core.secret_key)
 
@@ -194,12 +195,27 @@ def physicalAcquisition(group_name, unique_link):
         android_process = subprocess.Popen(android_command, shell=True)
         time.sleep(2)
 
+        safeFullPath = LOCATION + '/' + FILE_NAME
+
         fullPath = shlex.quote(LOCATION + '/' + FILE_NAME)
         # Construct the server_command with -q option (if supported)
-        if seek_skip_block > 0:
-            server_command = f"netcat {IP} {PORT_CLIENT} -q 1 | dd of={fullPath} bs={bs} seek={seek_blocks} conv=fsync"
-        else:
-            server_command = f"netcat {IP} {PORT_CLIENT} -q 1 | dd of={fullPath} bs={bs} conv=fsync"
+
+        if image_format == 'DD':
+            if seek_skip_block > 0:
+                server_command = f"netcat {IP} {PORT_CLIENT} -q 1 | dd of={fullPath} bs={bs} seek={seek_blocks} conv=fsync"
+            else:
+                server_command = f"netcat {IP} {PORT_CLIENT} -q 1 | dd of={fullPath} bs={bs} conv=fsync"
+        elif image_format == 'E01':
+            ewf_command = (f'ewfacquirestream -t {fullPath} '
+                           f'-C "{getAcquisitionObject.evidence.case.case_number}" '
+                           f'-d sha256 '
+                           f'-D "{getAcquisitionObject.evidence.case.description}" '
+                           f'-E "{getAcquisitionObject.evidence.evidence_number}" '
+                           f'-e "{getAcquisitionObject.examiner.user_name}" '
+                           f'-l {fullPath}.log '
+                           f'-N "{getAcquisitionObject.evidence.evidence_description}"')
+
+            server_command = f'netcat {IP} {PORT_CLIENT} -d | {ewf_command}'
 
         print(f'Server Command: {server_command}')
 
@@ -235,7 +251,7 @@ def physicalAcquisition(group_name, unique_link):
             if getAcquisitionObject.status == 'cancelled':
 
                 # Update the total transferred bytes
-                getAcquisitionObject.physical.total_transferred_bytes = os.path.getsize(f'{LOCATION}/{FILE_NAME}')
+                getAcquisitionObject.physical.total_transferred_bytes = os.path.getsize(f"{safeFullPath}.E01") if image_format == "E01" else os.path.getsize(f"{safeFullPath}")
                 getAcquisitionObject.physical.save()
 
                 time.sleep(2)
@@ -260,7 +276,7 @@ def physicalAcquisition(group_name, unique_link):
             current_time = time.time()
             time_since_last_check = current_time - last_time
 
-            file_size = os.path.getsize(f'{LOCATION}/{FILE_NAME}')
+            file_size = os.path.getsize(f"{safeFullPath}.E01") if image_format == "E01" else os.path.getsize(f"{safeFullPath}")
             data_transferred_since_last_check = file_size - last_file_size
             current_transfer_rate = data_transferred_since_last_check / time_since_last_check if time_since_last_check else 0
 
@@ -309,21 +325,25 @@ def physicalAcquisition(group_name, unique_link):
 
             time.sleep(2)
 
-            current_size = os.path.getsize(f'{LOCATION}/{FILE_NAME}')
+            current_size = os.path.getsize(f"{safeFullPath}.E01") if image_format == "E01" else os.path.getsize(f"{safeFullPath}")
             if current_size == last_size:
                 timeout_counter += 1
                 getAcquisitionObject.physical.total_transferred_bytes = current_size
                 getAcquisitionObject.physical.save()
 
-                if timeout_counter >= TIMEOUT_THRESHOLD and getAcquisitionObject.physical.total_transferred_bytes == total_size_bytes:
+                if (
+                        timeout_counter >= TIMEOUT_THRESHOLD and
+                        getAcquisitionObject.physical.total_transferred_bytes >= total_size_bytes and
+                        image_format in ("DD", "E01")
+                ):
                     terminate_process(server_process)
                     terminate_process(android_process)
 
                     # Wait for the termination process
                     time.sleep(5)
 
-                    release_file_handles(f'{LOCATION}/{FILE_NAME}')
-                    file_path = os.path.join(LOCATION, FILE_NAME)
+                    release_file_handles(os.path.join(f"{safeFullPath}.E01") if image_format == "E01" else os.path.join(f"{safeFullPath}"))
+                    file_path = os.path.join(f"{safeFullPath}.E01") if image_format == "E01" else os.path.join(f"{safeFullPath}")
 
                     # Send a message to the client
                     async_to_sync(channel_layer.group_send)(
@@ -335,7 +355,7 @@ def physicalAcquisition(group_name, unique_link):
                         }
                     )
 
-                    file_hashed = compute_sha256_hash(file_path)
+                    file_hashed = compute_sha256_hash(file_path) if image_format == "DD" else ""
                     acquisition_end_time = datetime.now()
                     acquisition_duration = acquisition_end_time - acquisition_start_time
 

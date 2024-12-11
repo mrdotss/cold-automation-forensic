@@ -175,7 +175,7 @@ class ChainOfCustodyForm(forms.Form):
                 "class": "form-control datepicker",
                 "id": "coc_date"
             }
-        )
+        ), required=False
     )
     user = forms.ModelChoiceField(
         queryset=User.objects.all(), to_field_name="id",
@@ -183,7 +183,7 @@ class ChainOfCustodyForm(forms.Form):
             attrs={
                 "class": "form-control select2",
                 "id": "coc_user"}
-        )
+        ), required=False
     )
     action = forms.CharField(
         widget=forms.TextInput(
@@ -192,7 +192,7 @@ class ChainOfCustodyForm(forms.Form):
                 "id": "coc_action",
                 "placeholder": "Created/Collected something..."
             }
-        )
+        ), required=False
     )
     detail = forms.CharField(
         widget=forms.TextInput(
@@ -201,7 +201,7 @@ class ChainOfCustodyForm(forms.Form):
                 "id": "coc_details",
                 "placeholder": "Location: xx/something..."
             }
-        )
+        ), required=False
     )
 
 class AdditionalInfoForm(forms.Form):
@@ -212,7 +212,7 @@ class AdditionalInfoForm(forms.Form):
                 "id": "addinfo_name",
                 "placeholder": ""
             }
-        )
+        ), required=False
     )
     addinfo_agency = forms.CharField(
         widget=forms.TextInput(
@@ -221,7 +221,7 @@ class AdditionalInfoForm(forms.Form):
                 "id": "addinfo_agency",
                 "placeholder": ""
             }
-        )
+        ), required=False
     )
     addinfo_phone = forms.CharField(
         widget=forms.TextInput(
@@ -230,7 +230,7 @@ class AdditionalInfoForm(forms.Form):
                 "id": "addinfo_phone",
                 "placeholder": ""
             }
-        )
+        ), required=False
     )
     addinfo_fax = forms.CharField(
         widget=forms.TextInput(
@@ -239,7 +239,7 @@ class AdditionalInfoForm(forms.Form):
                 "id": "addinfo_fax",
                 "placeholder": ""
             }
-        )
+        ), required=False
     )
     addinfo_address = forms.CharField(
         widget=forms.TextInput(
@@ -248,7 +248,7 @@ class AdditionalInfoForm(forms.Form):
                 "id": "addinfo_address",
                 "placeholder": ""
             }
-        )
+        ), required=False
     )
     addinfo_email = forms.CharField(
         widget=forms.TextInput(
@@ -257,7 +257,7 @@ class AdditionalInfoForm(forms.Form):
                 "id": "addinfo_email",
                 "placeholder": ""
             }
-        )
+        ), required=False
     )
     addinfo_notes = forms.CharField(
         widget=forms.Textarea(
@@ -266,5 +266,5 @@ class AdditionalInfoForm(forms.Form):
                 "id": "addinfo_notes",
                 "placeholder": ""
             }
-        )
+        ), required=False
     )

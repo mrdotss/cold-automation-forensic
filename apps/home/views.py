@@ -11,12 +11,13 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.core.serializers.json import DjangoJSONEncoder
 from django.views.generic import ListView, CreateView, UpdateView, DeleteView
 from django.db import transaction
+from easyaudit.models import CRUDEvent
 
 from ..caf.ColdForensic import ColdForensic
 from .models import Case, User, Evidence, Acquisition, PhysicalAcquisition, SelectiveFullFileSystemAcquisition
 from .forms import CaseUpdateForm, EvidenceUpdateForm, ChainOfCustodyForm, AdditionalInfoForm
 from apps.home.asynchronous.task import physicalAcquisition, selectiveFfsAcquisition
-import time, random, string, json, uuid, os
+import random, string, json, uuid
 from datetime import datetime
 from pathlib import Path
 
@@ -73,6 +74,10 @@ class CaseListView(ListView):
     fields = '__all__'
     template_name = 'home/case.html'
     success_url = reverse_lazy('cases_home:all')
+
+    # if want to show all cases, including the soft-deleted ones, use the following code
+    # def get_queryset(self):
+    #     return Case.all_objects.all()
 
 
 class CaseCreateView(CreateView):
@@ -198,27 +203,38 @@ class CaseUpdateView(UpdateView):
             return super().form_invalid(form)
 
 
-class CaseDeleteView(DeleteView):
-    @method_decorator(csrf_exempt)  # To allow AJAX POST requests without CSRF token
-    def dispatch(self, *args, **kwargs):
-        return super().dispatch(*args, **kwargs)
+@method_decorator(csrf_exempt, name='dispatch')
+class CaseDeleteView(View):
+    def post(self, request, *args, **kwargs):
+        case_id = self.kwargs.get('case_id')
+        case = get_object_or_404(Case, case_id=case_id)
 
-    model = Case
+        # Perform soft delete
+        case.is_deleted = True
+        case.save()
 
-    def get_object(self, queryset=None):
-        case_id = self.kwargs['case_id']
-        return get_object_or_404(Case, case_id=case_id)
-
-    def form_valid(self, form):
-        self.object = self.get_object()
-        self.object.delete()
         return JsonResponse({'success': True})
 
     def get_success_url(self):
         return reverse_lazy('cases_home')
 
+
 def is_ajax(request):
     return request.headers.get('x-requested-with') == 'XMLHttpRequest'
+
+def activitiesList(request):
+
+    create_events = CRUDEvent.objects.filter(event_type=CRUDEvent.CREATE).order_by('-datetime')[:10]
+    context = {
+        'create_events': create_events,
+    }
+
+    return render(request, 'home/activities.html', context)
+
+def get_case_members_by_evidence(request, evidence_id):
+    evidence = get_object_or_404(Evidence, evidence_id=evidence_id)
+    members = evidence.case.case_member.all().values('id', 'user_name', 'user_roles')
+    return JsonResponse(list(members), safe=False)
 
 def get_case_members(request, case_id):
     case = get_object_or_404(Case, case_id=case_id)
@@ -304,7 +320,6 @@ def start_acquisition_task(unique_link):
     elif acquisitionObject.acquisition_type == "selective_full_file_system":
         result = selectiveFfsAcquisition.delay('acquisition-progress_%s' % unique_link, unique_link)
         print("Task started with status ->", result.status)
-
 
 def get_acquisition_presetup(request, serial_id, unique_link):
     acquisitionObject = Acquisition.objects.get(unique_link=unique_link)
@@ -467,20 +482,16 @@ class EvidenceUpdateView(UpdateView):
             return super().form_invalid(form)
 
 
-class EvidenceDeleteView(DeleteView):
-    @method_decorator(csrf_exempt)  # To allow AJAX POST requests without CSRF token
-    def dispatch(self, *args, **kwargs):
-        return super().dispatch(*args, **kwargs)
+@method_decorator(csrf_exempt, name='dispatch')
+class EvidenceDeleteView(View):
+    def post(self, request, *args, **kwargs):
+        evidence_id = self.kwargs.get('evidence_id')
+        evidence = get_object_or_404(Evidence, evidence_id=evidence_id)
 
-    model = Evidence
+        # Perform soft delete
+        evidence.is_deleted = True
+        evidence.save()
 
-    def get_object(self, queryset=None):
-        evidence_id = self.kwargs['evidence_id']
-        return get_object_or_404(Evidence, evidence_id=evidence_id)
-
-    def form_valid(self, form):
-        self.object = self.get_object()
-        self.object.delete()
         return JsonResponse({'success': True})
 
     def get_success_url(self):
@@ -621,7 +632,7 @@ class AcquisitionSetup(View):
         acquisitionHistory = zip(acquisitionList, percentageList)
 
         # Check if the acquisition needs to resume
-        if hasattr(acquisitionObject, 'physical') and acquisitionObject.physical.total_transferred_bytes >= 0 and acquisitionObject.status in ["cancelled", "failed", "in_progress"]:
+        if hasattr(acquisitionObject, 'physical') and acquisitionObject.physical.total_transferred_bytes >= 0 and acquisitionObject.status in ["cancelled", "failed", "in_progress"] and acquisitionObject.physical.format_type == "DD":
 
             # Prepare the context for rendering
             context = {
@@ -693,7 +704,10 @@ class AcquisitionSetup(View):
             # Generate a random string for unique identifier
             unique_id = ''.join(random.choices(string.ascii_lowercase + string.digits, k=5))
 
-            acquisition_file_name = f"{data['partition_id']}_{current_time}_{unique_id}_{connection_type.lower()}.dd"
+            if data['format_type'] == "DD":
+                acquisition_file_name = f"{data['partition_id']}_{current_time}_{unique_id}_{connection_type.lower()}.dd"
+            elif data['format_type'] == "E01":
+                acquisition_file_name = f"{data['partition_id']}_{current_time}_{unique_id}_{connection_type.lower()}"
 
             # Convert checkbox_value to boolean or integer
             acquisition_is_verify_first = data['checkbox_value'] == 'true'
@@ -712,6 +726,7 @@ class AcquisitionSetup(View):
                     'partition_size': data['partition_size'],
                     'is_verify_first': acquisition_is_verify_first,
                     'acquisition_method': "dd",
+                    'format_type': data['format_type'],
                     'source_device': f"/dev/block/{data['partition_id']}",
                 }
             )
@@ -722,6 +737,7 @@ class AcquisitionSetup(View):
                 physical_acquisition.partition_size = data['partition_size']
                 physical_acquisition.is_verify_first = acquisition_is_verify_first
                 physical_acquisition.acquisition_method = "dd"
+                physical_acquisition.format_type = data['format_type']
                 physical_acquisition.source_device = f"/dev/block/{data['partition_id']}"
                 physical_acquisition.save()
 
@@ -768,6 +784,9 @@ class AcquisitionSetup(View):
             acquisitionObject.port = data.get('port') if data.get('port') != "USB" else ""
             acquisitionObject.status = "in_progress"
             acquisitionObject.size = acquisition_size_template
+
+            user = User.objects.get(id=data['examiner'])
+            acquisitionObject.examiner = user
 
             # Save the updated acquisition object
             acquisitionObject.save()

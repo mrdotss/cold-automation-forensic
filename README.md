@@ -25,6 +25,7 @@ Also documented [here](https://s3.wasabisys.com/c343765-a/User-Manual/RAAS%20-%2
 - **yarn** (Install [yarn](https://classic.yarnpkg.com/lang/en/docs/install/#windows-stable) first if you don't have it in your machine) for installing the frontend dependencies
 - **Redis server** (You can install it on the same server)
 - **Virtualenv** (Optional but recommended for creating isolated Python environments)
+- **ewf-tools** (Tools for working with EWF files), you can install it with `sudo apt install ewf-tools`
 
 ### For The Device
 - You need to enable USB Debugging on your device and connect it to your computer via USB/IP Address

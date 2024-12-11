@@ -303,7 +303,8 @@
                             const progressBar = document.getElementById("progressBar");
                             progressBar.classList.remove("bg-success", "progress-bar-animated", "progress-bar-striped");
 
-                            $("#cancel-acquisition-btn").removeClass('btn-danger').addClass('btn-light disabled').html(`<i class="fas fa-times"></i>  Cancelled`)
+                            // $("#cancel-acquisition-btn").removeClass('btn-danger').addClass('btn-light disabled').html(`<i class="fas fa-check"></i>  Acquisition Completed`)
+                            $("#cancel-acquisition-btn").remove();
                             
                             break;
                     }

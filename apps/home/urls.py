@@ -19,6 +19,10 @@ urlpatterns = [
     path('evidence/update/<uuid:evidence_id>', views.EvidenceUpdateView.as_view(), name='evidences_update'),
     path('evidence/<uuid:evidence_id>/delete', views.EvidenceDeleteView.as_view(), name='evidences_delete'),
     path('evidence/get_case_members/<uuid:case_id>', views.get_case_members, name='get_case_members'),
+    path('evidence/get_case_members_by_evidence/<uuid:evidence_id>', views.get_case_members_by_evidence, name='get_case_members_by_evidence'),
+
+    # The activities page
+    path('activities/', views.activitiesList, name='activities_home'),
 
     path('device/', views.Devices.as_view(), name='devices_home'),
     path('device/detail/<str:dev_id>', views.DevicesDetail.as_view(), name='devices_detail'),
@@ -32,7 +36,7 @@ urlpatterns = [
 
     ## No Class
     path('evidence/<uuid:evidence_id>/coc', views.get_evidence_coc, name='get_evidence_coc'),
-path('evidence/<uuid:evidence_id>/acquisition_history', views.get_evidence_acquisition_history, name='get_evidence_acquisition_history'),
+    path('evidence/<uuid:evidence_id>/acquisition_history', views.get_evidence_acquisition_history, name='get_evidence_acquisition_history'),
     path('acquisition-setup/<str:serial_id>/save-location/<uuid:unique_link>', views.get_acquisition_save_location,
          name='device_acquisition_save_location'),
     path('acquisition-setup/<str:serial_id>/pre-progress/<uuid:unique_link>', views.get_acquisition_presetup,

@@ -146,7 +146,7 @@
                     <div class="form-group col-md-6">
                         <label for="coc_user">User</label>
                         <select class="form-control select2" name="coc_user" id="coc_user">
-                            <option value="Select...">Select...</option>
+                            <option value="">Select...</option>
                             ${userOptions}
                         </select>
                     </div>
@@ -196,7 +196,7 @@
     <script>
     $(document).ready(function() {
         $("#case").on("change", function() {
-            if ($(this).val() === "Select...") {
+            if ($(this).val() === "") {
                 $("#evidence_acquired_by").html("");
                 return;
             }

@@ -1,0 +1,70 @@
+{% extends 'layouts/base.html' %}
+
+{% block title %} Activities {% endblock title %}
+
+<!-- Specific CSS goes HERE -->
+{% block stylesheets %}
+{% load static %}
+  <!-- CSS Libraries -->
+  <link rel="stylesheet" href="{% static 'node_modules/bootstrap-social/bootstrap-social.css' %}">
+  <link rel="stylesheet" href="{% static 'node_modules/summernote/dist/summernote-bs4.css' %}">
+{% endblock stylesheets %}
+
+{% block content %}
+    <div class="section-header">
+        <h1>Activities</h1>
+        <div class="section-header-breadcrumb">
+            <div class="breadcrumb-item active"><a href="#">Dashboard</a></div>
+            <div class="breadcrumb-item">Activities</div>
+        </div>
+    </div>
+    
+    <div class="section-body">
+        <h2 class="section-title">September 2024</h2>
+        <div class="row">
+            <div class="col-12">
+                <div class="activities">
+                
+                    {% for event in create_events %}
+                        <div class="activity">
+                            <div class="activity-icon bg-primary text-white shadow-primary">
+                                <i class="fas fa-plus"></i> <!-- Icon for 'Create' event -->
+                            </div>
+                            <div class="activity-detail">
+                                <div class="mb-2">
+                                    <span class="text-job text-primary">{{ event.datetime|date:"M d, Y H:i A" }}</span>
+                                    <span class="bullet"></span>
+                                    <a class="text-job" href="#">View</a>
+{#                                    <div class="float-right dropdown">#}
+{#                                        <a href="#" data-toggle="dropdown"><i class="fas fa-ellipsis-h"></i></a>#}
+{#                                        <div class="dropdown-menu">#}
+{#                                            <div class="dropdown-title">Options</div>#}
+{#                                            <a href="#" class="dropdown-item has-icon"><i class="fas fa-eye"></i> View</a>#}
+{#                                            <a href="#" class="dropdown-item has-icon"><i class="fas fa-list"></i> Detail</a>#}
+{#                                            <div class="dropdown-divider"></div>#}
+{#                                            <a href="#" class="dropdown-item has-icon text-danger" data-confirm="Are you sure?|This action can't be undone." data-confirm-text-yes="Yes, archive it"><i class="fas fa-trash-alt"></i> Archive</a>#}
+{#                                        </div>#}
+{#                                    </div>#}
+                                </div>
+                                <p>
+                                    User <strong>{{ event.user }}</strong> created a new entry in <strong>{{ event.content_type.name }}</strong>.
+                                    <br>
+                                    <span>Details: {{ event.object_repr }}</span>
+                                </p>
+                            </div>
+                        </div>
+                    {% empty %}
+                        <p>No activities found.</p>
+                    {% endfor %}
+                
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock content %}
+
+<!-- Specific JS goes HERE -->
+{% block javascripts %}
+    <!-- JS Libraies -->
+    <script src="{% static 'node_modules/summernote/dist/summernote-bs4.js' %}"></script>
+{% endblock javascripts %}
