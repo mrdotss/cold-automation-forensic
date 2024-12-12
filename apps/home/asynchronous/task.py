@@ -1,8 +1,8 @@
-import time, subprocess, os, logging, json, hashlib, random, string
+import time, subprocess, os, logging, hashlib, shlex, glob
+
 from datetime import datetime
 from django.test import RequestFactory
 from django.utils import timezone
-
 from asgiref.sync import async_to_sync
 from celery import shared_task
 from channels.layers import get_channel_layer
@@ -11,7 +11,6 @@ from apps.caf.cold_action import adb_instance
 from apps.home.models import Acquisition, SelectiveFullFileSystemAcquisition
 from core.celery import app
 from apps.caf.ColdForensic import ColdForensic
-import shlex
 
 
 __all__ = ('app',)
@@ -276,7 +275,11 @@ def physicalAcquisition(group_name, unique_link):
             current_time = time.time()
             time_since_last_check = current_time - last_time
 
-            file_size = os.path.getsize(f"{safeFullPath}.E01") if image_format == "E01" else os.path.getsize(f"{safeFullPath}")
+            if image_format == "E01":
+                file_size = get_ewf_segments_size(f"{safeFullPath}.E01")
+            else:
+                file_size = os.path.getsize(f"{safeFullPath}")
+
             data_transferred_since_last_check = file_size - last_file_size
             current_transfer_rate = data_transferred_since_last_check / time_since_last_check if time_since_last_check else 0
 
@@ -325,7 +328,11 @@ def physicalAcquisition(group_name, unique_link):
 
             time.sleep(2)
 
-            current_size = os.path.getsize(f"{safeFullPath}.E01") if image_format == "E01" else os.path.getsize(f"{safeFullPath}")
+            if image_format == "E01":
+                current_size = get_ewf_segments_size(f"{safeFullPath}.E01")
+            else:
+                current_size = os.path.getsize(f"{safeFullPath}")
+
             if current_size == last_size:
                 timeout_counter += 1
                 getAcquisitionObject.physical.total_transferred_bytes = current_size
@@ -763,6 +770,19 @@ def release_file_handles(file_path):
                     proc.wait()
     except ImportError:
         pass
+
+def get_ewf_segments_size(base_path):
+    # base_path would be something like "/full/path/to/image.E01"
+    # We want to glob all files that start with image.E and have any numeric suffix
+    base_without_extension = os.path.splitext(base_path)[0]  # strip .E01 for the moment
+    # If base_path = "/path/to/filename.E01", base_without_extension = "/path/to/filename"
+    # Now find all segments like filename.E01, filename.E02, etc.
+    segment_files = glob.glob(base_without_extension + ".E*")
+
+    total_size = 0
+    for seg_file in segment_files:
+        total_size += os.path.getsize(seg_file)
+    return total_size
 
 @shared_task
 def compute_sha256_hash(file_path):
