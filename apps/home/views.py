@@ -389,6 +389,11 @@ class EvidenceCreateView(CreateView):
     fields = ['evidence_description', 'evidence_status', 'evidence_type', 'case',
               'evidence_acquired_by', 'evidence_acquired_date', 'evidence_number']
 
+    def form_invalid(self, form):
+        # Log errors
+        print(form.errors)
+        return super().form_invalid(form)
+
     def form_valid(self, form):
         form.instance.user = self.request.user
         response = super().form_valid(form)
@@ -661,12 +666,18 @@ class AcquisitionSetup(View):
 
         partitionList = ColdForensic().getPartitionList(serial_id)
 
+        largest_partition = None
+        if partitionList:
+            # `max` will pick the partition with the largest 'blocks'
+            largest_partition = max(partitionList, key=lambda p: p["blocks"])
+
         context = {
             'serial_id': serial_id,
             'partitionList': partitionList,
             'acquisitionProcess': acquisitionObject,
             'acquisitionHistory': acquisitionHistory,
             'isWifi': isWifi,
+            'largestPartition': largest_partition,
         }
 
         if isHashedIP:
@@ -677,7 +688,8 @@ class AcquisitionSetup(View):
                 'acquisitionHistory': acquisitionHistory,
                 'acquisitionModalHistory': acquisitionList,
                 'isWifi': isWifi,
-                'ipAddress': ColdForensic().decrypt(serial_id, ColdForensic().secret_key).split(':')[0]
+                'ipAddress': ColdForensic().decrypt(serial_id, ColdForensic().secret_key).split(':')[0],
+                'largestPartition': largest_partition,
             }
 
         return render(request, 'home/device-acquisition-physical-setup.html', context)

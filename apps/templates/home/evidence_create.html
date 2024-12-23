@@ -109,6 +109,9 @@
                       <div class="form-group col-md-12">
                         <button class="btn btn-outline-secondary" id="add-coc">+ Chain of Custody</button>
                       </div>
+                  {% for error in form.non_field_errors %}
+                    <p class="error">{{ error }}</p>
+                  {% endfor %}
                       <button type="submit" class="btn btn-primary">Create</button>
                   </form>
                 </div>

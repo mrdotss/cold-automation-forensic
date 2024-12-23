@@ -8,6 +8,7 @@ import socket
 import threading
 import psutil
 
+
 logger = logging.getLogger(__name__)
 
 # class ADBCoreTestCase(TestCase):
@@ -84,4 +85,3 @@ logger = logging.getLogger(__name__)
 #         else:
 #             print("No adb forwards found.")
 #         self.assertEqual(len(forwards), 0, "Adb forward list should be empty after removing all forwards.")
-

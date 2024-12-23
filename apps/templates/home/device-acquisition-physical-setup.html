@@ -72,7 +72,15 @@
                       </div>
                     </div>
 
-                      <br><br>
+                    <br><br>
+                    <div class="form-group">
+                      <label for="partitionMode">Partition Selection Mode:</label>
+                      <select id="partitionMode" class="form-control">
+                        <option value="manual" selected>Manual</option>
+                        <option value="auto">Auto-Select Root Partition</option>
+                      </select>
+                    </div>
+
                       <div class="table-responsive">
                           <table class="table table-bordered table-md" id="table-1">
                               <thead>
@@ -239,6 +247,7 @@
         $(document).ready(function() {
             const $acquisitionBtn = $('#acquisition-btn');
             const $rows = $('#table-1 tbody tr');
+            const largestPartitionName = "{{ largestPartition.name|default_if_none:'' }}";
 
             $rows.on('click', function() {
                 // Extract data from the selected row
@@ -259,6 +268,26 @@
 
                 // Log the selected data
                 console.log("Selected partition:", columns[0]);
+            });
+
+            // Listen to the partitionMode dropdown
+            $('#partitionMode').on('change', function() {
+                const mode = $(this).val();
+                // Clear any old selection
+                $rows.removeClass('selected');
+                $acquisitionBtn.prop('disabled', true);
+
+                if (mode === 'auto' && largestPartitionName) {
+                    // Auto-select the largest partition row
+                    $rows.each(function() {
+                        const partitionName = $(this).find('td').eq(0).text().trim();
+                        if (partitionName === largestPartitionName) {
+                            $(this).addClass('selected');
+                            $acquisitionBtn.prop('disabled', false);
+                            return false; // break from .each()
+                            }
+                    });
+                }
             });
         });
     </script>
@@ -307,7 +336,7 @@
                                             + columns[0] + "&partition_size=" + columns[1] + "&checkbox_value=" + checkboxValue; // Add checkbox value
 
                             console.log("Form data (After):", formData);
-                            
+
                             const CSRF_TOKEN = getCookie('csrftoken');
                             e.preventDefault(); // Prevent the default form submission
                             $.ajax({
