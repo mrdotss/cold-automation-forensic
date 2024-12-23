@@ -281,10 +281,18 @@
                     // Auto-select the largest partition row
                     $rows.each(function() {
                         const partitionName = $(this).find('td').eq(0).text().trim();
+                        const partitionSize = $(this).find('td').eq(1).text().trim();
+
                         if (partitionName === largestPartitionName) {
+                            // Deselect all first, select this row
+                            $rows.removeClass('selected');
                             $(this).addClass('selected');
+
+                            // Important: set "columns" so your acquisition click can read it later
+                            columns = [ partitionName, partitionSize ];
+
                             $acquisitionBtn.prop('disabled', false);
-                            return false; // break from .each()
+                            return false; // break out of .each()
                             }
                     });
                 }
